@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { Partner } from "@/lib/types";
 import { PartnerProducts } from "@/components/PartnerProducts";
 
@@ -116,6 +116,7 @@ export function PartnerForm({
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isGenerating, startGenerating] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const contactFirstRef = useRef<HTMLInputElement>(null);
@@ -401,18 +402,22 @@ export function PartnerForm({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Portal access link</span>
                     {generatePortalToken && (
-                      <form action={generatePortalToken}>
-                        <input type="hidden" name="id" value={partner.id} />
-                        <button
-                          type="submit"
-                          style={{
-                            fontSize: 12, color: "var(--indigo)", background: "none",
-                            border: "none", cursor: "pointer", padding: 0, fontWeight: 500,
-                          }}
-                        >
-                          {partner.portal_token ? "Regenerate" : "Generate link"}
-                        </button>
-                      </form>
+                      <button
+                        type="button"
+                        disabled={isGenerating}
+                        onClick={() => {
+                          const fd = new FormData();
+                          fd.set("id", String(partner.id));
+                          startGenerating(() => generatePortalToken(fd));
+                        }}
+                        style={{
+                          fontSize: 12, color: "var(--indigo)", background: "none",
+                          border: "none", cursor: "pointer", padding: 0, fontWeight: 500,
+                          opacity: isGenerating ? 0.5 : 1,
+                        }}
+                      >
+                        {isGenerating ? "Generating…" : partner.portal_token ? "Regenerate" : "Generate link"}
+                      </button>
                     )}
                   </div>
 

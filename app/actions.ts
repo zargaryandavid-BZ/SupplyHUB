@@ -936,7 +936,7 @@ export async function sendReminder(formData: FormData) {
     const p = await partnerById(d.partner_id);
     if (!p) continue;
     const link = partnerRequestLink({ portalToken: p.portal_token, requestId });
-    const body = `Hi ${p.company},\n\nThis is a friendly reminder about our open request for "${reqRow.title}"${reqRow.quantity ? ` (qty: ${Number(reqRow.quantity).toLocaleString()})` : ""}${reqRow.needed_by ? `, needed by ${reqRow.needed_by}` : ""}.\n\nPlease submit your quote at your earliest convenience:\n${link}\n\nThanks,\n${companyName}`;
+    const body = `Hi ${p.company}, this is a friendly reminder about our open request for "${reqRow.title}"${reqRow.quantity ? ` (qty: ${Number(reqRow.quantity).toLocaleString()})` : ""}${reqRow.needed_by ? `, needed by ${reqRow.needed_by}` : ""}. Please submit your quote: ${link} — Thanks, ${companyName}`;
     await notify({
       to: `${p.email || p.company} / ${p.phone || ""}`,
       phone: p.phone,
@@ -968,6 +968,7 @@ export async function updateRequestStatus(formData: FormData) {
   const id = Number(formData.get("id"));
   const status = String(formData.get("status") || "").trim();
   const allowed = ["draft", "sent", "quoting", "clarifying", "awarded", "closed"];
+
   if (!id || !allowed.includes(status)) redirect("/manager");
 
   await supabaseAdmin()
@@ -977,6 +978,31 @@ export async function updateRequestStatus(formData: FormData) {
 
   revalidatePath("/manager");
   revalidatePath(`/manager/requests/${id}`);
+}
+
+// ---------- Manager: delete a request (only when no partners dispatched) ----------
+export async function deleteRequest(formData: FormData) {
+  const actor = await getActor();
+  if (actor.role !== "manager") redirect("/");
+
+  const id = Number(formData.get("id"));
+  if (!id) redirect("/manager");
+
+  const sb = supabaseAdmin();
+
+  // Safety: refuse to delete if any dispatches exist
+  const { count } = await sb
+    .from("dispatches")
+    .select("id", { count: "exact", head: true })
+    .eq("request_id", id);
+
+  if ((count ?? 0) > 0) {
+    redirect("/manager?error=has_dispatches");
+  }
+
+  await sb.from("product_requests").delete().eq("id", id);
+  revalidatePath("/manager");
+  redirect("/manager");
 }
 
 // ---------- Manager: duplicate a request ----------

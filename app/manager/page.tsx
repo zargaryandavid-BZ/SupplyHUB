@@ -4,7 +4,7 @@ import { getActor } from "@/lib/session";
 import { managerRequests } from "@/lib/data";
 import { Sidebar } from "@/components/Sidebar";
 import { ManagerRequestsView } from "@/components/ManagerRequestsView";
-import { sendReminder, updateRequestStatus, duplicateRequest } from "@/app/actions";
+import { sendReminder, updateRequestStatus, duplicateRequest, deleteRequest } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,7 @@ export default async function ManagerBoard({
 
         <ManagerRequestsView
           requests={requests}
-          actions={{ sendReminder, updateStatus: updateRequestStatus, duplicate: duplicateRequest }}
+          actions={{ sendReminder, updateStatus: updateRequestStatus, duplicate: duplicateRequest, deleteReq: deleteRequest }}
         />
       </main>
     </div>

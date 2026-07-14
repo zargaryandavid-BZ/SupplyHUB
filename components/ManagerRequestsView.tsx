@@ -48,6 +48,8 @@ type Actions = {
   updateStatus: (fd: FormData) => Promise<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   duplicate: (fd: FormData) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  deleteReq: (fd: FormData) => Promise<any>;
 };
 
 export function ManagerRequestsView({ requests, actions }: { requests: RequestRow[]; actions: Actions }) {
@@ -443,9 +445,11 @@ export function ManagerRequestsView({ requests, actions }: { requests: RequestRo
                       requestId={r.id}
                       currentStatus={r.status}
                       awaitingCount={r.awaiting_count}
+                      partnerCount={r.partner_count}
                       sendReminder={actions.sendReminder}
                       updateStatus={actions.updateStatus}
                       duplicate={actions.duplicate}
+                      deleteReq={actions.deleteReq}
                     />
                   </td>
                 </tr>
