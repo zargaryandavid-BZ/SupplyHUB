@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { RequestRow } from "@/lib/data";
 import { STATUS_ORDER, STATUS_LABELS } from "@/lib/types";
@@ -43,12 +43,31 @@ function matchesQuery(r: RequestRow, q: string): boolean {
 export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
   const [view, setView] = useState<ViewMode>("table");
   const [query, setQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  const allStatuses = useMemo(
+    () => STATUS_ORDER.filter((s) => requests.some((r) => r.status === s)),
+    [requests]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return requests;
-    return requests.filter((r) => matchesQuery(r, q));
-  }, [requests, query]);
+    return requests.filter((r) => {
+      if (statusFilters.size > 0 && !statusFilters.has(r.status)) return false;
+      if (q && !matchesQuery(r, q)) return false;
+      return true;
+    });
+  }, [requests, query, statusFilters]);
+
+  function toggleStatus(s: string) {
+    setStatusFilters((prev) => {
+      const next = new Set(prev);
+      next.has(s) ? next.delete(s) : next.add(s);
+      return next;
+    });
+  }
 
   const columns = useMemo(() => {
     return STATUS_ORDER.filter((s) => s !== "closed").concat(
@@ -197,7 +216,7 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
           )}
         </div>
 
-        {query.trim() && (
+        {(query.trim() || statusFilters.size > 0) && (
           <span className="small muted">
             {filtered.length} of {requests.length} request{requests.length === 1 ? "" : "s"}
           </span>
@@ -213,11 +232,7 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
           </p>
         </div>
       ) : view === "kanban" ? (
-        <div className="board" ref={(el) => {
-          // #region agent log
-          if (el) fetch('http://127.0.0.1:7414/ingest/69ad28d6-3417-4a08-9757-3f740b8c55d0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c88ff0'},body:JSON.stringify({sessionId:'c88ff0',location:'ManagerRequestsView.tsx:board',message:'board rendered',data:{alignItems:getComputedStyle(el).alignItems,columnCount:el.children.length,heights:Array.from(el.children).map(c=>c.getBoundingClientRect().height)},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
-          // #endregion
-        }}>
+        <div className="board">
           {columns.map((status) => {
             const items = filtered.filter((r) => r.status === status);
             return (
@@ -257,7 +272,79 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
               <th>Client</th>
               <th>Order #</th>
               <th>Qty</th>
-              <th>Status</th>
+              <th>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  Status
+                  <div ref={filterRef} style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      onClick={() => setFilterOpen((o) => !o)}
+                      title="Filter by status"
+                      style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        width: 22, height: 22, padding: 0, border: "none", borderRadius: 4,
+                        cursor: "pointer", background: statusFilters.size > 0 ? "var(--indigo)" : "transparent",
+                        color: statusFilters.size > 0 ? "#fff" : "var(--muted)",
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                      </svg>
+                    </button>
+                    {filterOpen && (
+                      <div
+                        style={{
+                          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+                          background: "#fff", border: "1px solid var(--border)", borderRadius: 8,
+                          boxShadow: "0 4px 16px rgba(0,0,0,0.1)", padding: "6px 0", minWidth: 160,
+                        }}
+                        onMouseLeave={() => setFilterOpen(false)}
+                      >
+                        {statusFilters.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => { setStatusFilters(new Set()); setFilterOpen(false); }}
+                            style={{
+                              display: "block", width: "100%", textAlign: "left",
+                              padding: "5px 12px", border: "none", background: "none",
+                              cursor: "pointer", fontSize: 12, color: "var(--indigo)", fontWeight: 600,
+                              fontFamily: "inherit", borderBottom: "1px solid var(--border)", marginBottom: 4,
+                            }}
+                          >
+                            Clear filter
+                          </button>
+                        )}
+                        {allStatuses.map((s) => (
+                          <label
+                            key={s}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 8,
+                              padding: "5px 12px", cursor: "pointer", fontSize: 13,
+                              fontWeight: 400, color: "var(--text)",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={statusFilters.has(s)}
+                              onChange={() => toggleStatus(s)}
+                              style={{ margin: 0, accentColor: "var(--indigo)" }}
+                            />
+                            <Badge status={s} />
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {statusFilters.size > 0 && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, background: "var(--indigo)", color: "#fff",
+                      borderRadius: 10, padding: "1px 5px", lineHeight: 1.5,
+                    }}>
+                      {statusFilters.size}
+                    </span>
+                  )}
+                </div>
+              </th>
               <th>Deliver date</th>
               <th>Partners</th>
               <th>Quotes</th>

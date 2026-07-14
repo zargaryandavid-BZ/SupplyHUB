@@ -14,18 +14,7 @@ export default async function Home({
   if (actor.role === "manager") redirect("/manager");
   if (actor.role === "partner") redirect("/partner");
 
-  // #region agent log
-  console.log("[home] fetching partners from Supabase...");
-  // #endregion
-  const partners = await Promise.race([
-    allPartners(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Supabase timeout after 8s")), 8000)
-    ),
-  ]).catch((err) => {
-    console.error("[home] allPartners failed:", err?.message ?? err);
-    return [] as import("@/lib/types").Partner[];
-  });
+  const partners = await allPartners();
 
   return (
     <div className="landing">
