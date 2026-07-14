@@ -24,9 +24,13 @@ export async function Sidebar({ active }: { active: string }) {
 
   return (
     <aside className="sidebar">
-      <div className="logo">
+      <Link
+        href={isManager ? "/manager" : "/partner"}
+        className="logo"
+        style={{ textDecoration: "none", display: "block" }}
+      >
         Supplyer<span>HUB</span>
-      </div>
+      </Link>
       <div className="tag">Partner management</div>
 
       <nav>

@@ -54,7 +54,8 @@ a:hover { text-decoration: underline; }
   padding: 20px 14px;
   flex-shrink: 0;
 }
-.sidebar .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; color: var(--text); }
+.sidebar .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; color: var(--text); text-decoration: none; cursor: pointer; }
+.sidebar .logo:hover { opacity: 0.8; }
 .sidebar .logo span { color: var(--indigo); }
 .sidebar .tag { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
 .sidebar nav a {
