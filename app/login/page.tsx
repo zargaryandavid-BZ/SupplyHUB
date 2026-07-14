@@ -31,6 +31,12 @@ export default async function LoginPage({
       <div style={{ width: "100%", maxWidth: 420 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bazaar-logo.png"
+            alt="Bazaar Printing"
+            style={{ width: 72, height: 72, objectFit: "contain", marginBottom: 12, borderRadius: 12 }}
+          />
           <div style={{
             fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px", color: "#1e293b",
             fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -38,7 +44,7 @@ export default async function LoginPage({
             Supplyer<span style={{ color: "var(--indigo, #6366f1)" }}>HUB</span>
           </div>
           <p style={{ color: "#64748b", fontSize: 14, marginTop: 6 }}>
-            Print House Partner &amp; Supplier Management
+            Print House Partner &amp; Supplier Management Platform by Bazaar Printing
           </p>
         </div>
 
