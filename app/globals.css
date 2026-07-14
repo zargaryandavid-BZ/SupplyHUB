@@ -359,6 +359,16 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .danger-zone h4 { margin: 0 0 10px; font-size: 14px; color: #dc2626; font-weight: 700; }
 .inline-actions { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
 .inline-actions form { display: contents; }
+.action-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 14px;
+  border: none; background: none; cursor: pointer;
+  font-size: 13px; font-family: inherit; color: var(--text);
+  text-align: left; white-space: nowrap;
+}
+.action-item:hover { background: #f3f4f6; }
+.action-item.danger { color: #dc2626; }
+.action-item.danger:hover { background: #fef2f2; }
 .card-section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 14px; }
 .logo-preview { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .logo-preview img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }

@@ -134,6 +134,12 @@ export type CompanySettings = {
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
+  /** SMS when a new request is sent to partners. Placeholders: {{company_name}}, {{title}}, {{quantity}}, {{needed_by}}, {{link}}, {{partner_name}} */
+  sms_new_request_template: string | null;
+  /** SMS when a partner wins. Placeholders: {{company_name}}, {{partner_name}}, {{title}}, {{quantity}}, {{price}}, {{currency}}, {{lead_time_days}}, {{needed_by}}, {{link}} */
+  sms_won_template: string | null;
+  /** SMS when a request is updated. Placeholders: {{company_name}}, {{title}}, {{quantity}}, {{needed_by}}, {{link}}, {{partner_name}} */
+  sms_update_template: string | null;
   updated_at: string | null;
 };
 

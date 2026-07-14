@@ -55,7 +55,15 @@ export default async function NewRequest({
 
         {searchParams.error && (
           <div className="notice error" style={{ marginBottom: 12 }}>
-            Please fill in at least a request title.
+            {searchParams.error === "product"
+              ? "Pick a product before sending."
+              : searchParams.error === "quantity"
+                ? "Enter a quantity before sending."
+                : searchParams.error === "partners"
+                  ? "Select at least one partner to send."
+                  : searchParams.error === "save"
+                    ? "Couldn’t save the request. Try again."
+                    : "Couldn’t create the request. Check product, quantity, and partners, then try again."}
           </div>
         )}
 

@@ -129,6 +129,24 @@ function printRequestPDF(
 
   ${contactBlock}
 
+  ${r.attachmentUrls?.length ? `
+  <div class="section">
+    <div class="section-title">Attachments</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;">
+      ${r.attachmentUrls.map((a) => {
+        const isImage = /\.(png|jpe?g|webp|gif|svg)$/i.test(a.name);
+        return isImage
+          ? `<div style="text-align:center;">
+               <img src="${a.url}" alt="${a.name}" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;display:block;" />
+               <div style="font-size:11px;color:#6b7280;margin-top:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.name}</div>
+             </div>`
+          : `<div style="width:160px;height:160px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;display:flex;align-items:center;justify-content:center;padding:10px;text-align:center;font-size:12px;color:#374151;">
+               📄 ${a.name}
+             </div>`;
+      }).join("")}
+    </div>
+  </div>` : ""}
+
   <div class="footer">
     <span>Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
     <span>SupplyerHUB</span>

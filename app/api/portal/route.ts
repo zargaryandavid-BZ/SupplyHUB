@@ -23,7 +23,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/?error=invalid_token", req.url));
   }
 
-  const res = NextResponse.redirect(new URL("/partner", req.url));
+  // Optional deep-link after login (relative path only).
+  const nextRaw = req.nextUrl.searchParams.get("next") || "/partner";
+  const next =
+    nextRaw.startsWith("/partner") && !nextRaw.startsWith("//") ? nextRaw : "/partner";
+
+  const res = NextResponse.redirect(new URL(next, req.url));
   res.cookies.set(COOKIE, `partner:${partner.id}`, {
     path: "/",
     httpOnly: true,

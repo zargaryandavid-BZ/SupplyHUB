@@ -1,11 +1,15 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { getActor } from "@/lib/session";
 import { requestDetail, activePartners } from "@/lib/data";
-import { awardQuote, postMessage, dispatchToPartners, updateRequest } from "@/app/actions";
+import { awardQuote, postMessage, dispatchToPartners, updateRequest, notifyPartnersUpdate } from "@/app/actions";
+import { getSettings } from "@/lib/settings";
+import { DEFAULT_SMS_UPDATE, fillTemplate, partnerRequestLink } from "@/lib/notifyTemplates";
 import { Sidebar } from "@/components/Sidebar";
 import { Badge } from "@/components/Badge";
 import { RequestDetailsPanel } from "@/components/RequestDetailsPanel";
+import { NotifyPartnersModal } from "@/components/NotifyPartnersModal";
 import { signedAttachmentUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +24,10 @@ export default async function ManagerRequestDetail({
   const actor = await getActor();
   if (actor.role !== "manager") redirect("/");
 
-  const [data, remaining] = await Promise.all([
+  const [data, remaining, settings] = await Promise.all([
     requestDetail(Number(params.id)),
     activePartners(),
+    getSettings(),
   ]);
   if (!data) notFound();
   const { request, offers, messages } = data;
@@ -43,6 +48,19 @@ export default async function ManagerRequestDetail({
       /* malformed JSON — skip */
     }
   }
+
+  // Build default SMS update message (filled with request data as preview)
+  const companyName = settings.company_name?.trim() || "our print house";
+  const updateTemplate = settings.sms_update_template?.trim() || DEFAULT_SMS_UPDATE;
+  const defaultSmsMessage = fillTemplate(updateTemplate, {
+    company_name: companyName,
+    partner_name: "{{partner_name}}",
+    title: request.title,
+    quantity: request.quantity != null ? Number(request.quantity).toLocaleString() : "",
+    needed_by: request.needed_by || "",
+    link: partnerRequestLink({ portalToken: null, requestId: request.id }),
+  });
+  const dispatchedPartnerCount = offers.length;
 
   const prices = offers.filter((o) => o.price != null).map((o) => o.price as number);
   const leadTimes = offers
@@ -216,6 +234,15 @@ export default async function ManagerRequestDetail({
             </button>
           </form>
         </div>
+        <Suspense>
+          <NotifyPartnersModal
+            requestId={request.id}
+            requestTitle={request.title}
+            partnerCount={dispatchedPartnerCount}
+            defaultMessage={defaultSmsMessage}
+            notifyAction={notifyPartnersUpdate}
+          />
+        </Suspense>
       </main>
     </div>
   );

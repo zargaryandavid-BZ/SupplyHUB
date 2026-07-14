@@ -2,6 +2,11 @@
 
 import { useRef, useState } from "react";
 import type { CompanySettings } from "@/lib/types";
+import {
+  DEFAULT_SMS_NEW_REQUEST,
+  DEFAULT_SMS_WON,
+  DEFAULT_SMS_UPDATE,
+} from "@/lib/notifyTemplates";
 
 type Props = {
   settings: CompanySettings;
@@ -301,6 +306,51 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
           </div>
         </div>
 
+      </div>
+
+      {/* ── Notifications ── */}
+      <div className="card" style={{ ...card, marginTop: 2, marginBottom: 72 }}>
+        <p className="card-section-title" style={{ marginBottom: 4 }}>SMS / notification templates</p>
+        <p className="small muted" style={{ margin: "0 0 14px" }}>
+          Sent to partners when a request goes out or a project is won. Use placeholders like{" "}
+          <code>{"{{company_name}}"}</code>, <code>{"{{title}}"}</code>, <code>{"{{link}}"}</code>,{" "}
+          <code>{"{{quantity}}"}</code>, <code>{"{{price}}"}</code>, <code>{"{{currency}}"}</code>,{" "}
+          <code>{"{{lead_time_days}}"}</code>, <code>{"{{needed_by}}"}</code>,{" "}
+          <code>{"{{partner_name}}"}</code>. Company name comes from Settings above.
+          Leave blank to use the default text.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>New request (SMS)</label>
+            <textarea
+              name="sms_new_request_template"
+              rows={6}
+              placeholder={DEFAULT_SMS_NEW_REQUEST}
+              defaultValue={s.sms_new_request_template ?? ""}
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.45 }}
+            />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Project won (SMS)</label>
+            <textarea
+              name="sms_won_template"
+              rows={6}
+              placeholder={DEFAULT_SMS_WON}
+              defaultValue={s.sms_won_template ?? ""}
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.45 }}
+            />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Request updated (SMS)</label>
+            <textarea
+              name="sms_update_template"
+              rows={6}
+              placeholder={DEFAULT_SMS_UPDATE}
+              defaultValue={s.sms_update_template ?? ""}
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.45 }}
+            />
+          </div>
+        </div>
       </div>
 
       {isDirty && (

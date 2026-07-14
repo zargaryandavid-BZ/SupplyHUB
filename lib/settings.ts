@@ -9,28 +9,40 @@ export async function getSettings(): Promise<CompanySettings> {
     .eq("id", 1)
     .maybeSingle();
 
-  return (
-    data ?? {
-      id: 1,
-      company_name: null,
-      logo_path: null,
-      hq_address: null,
-      branches: null,
-      ci_number: null,
-      ein: null,
-      bank_name: null,
-      bank_account: null,
-      swift: null,
-      payment_terms: null,
-      manager_name: null,
-      manager_phone: null,
-      manager_email: null,
-      contact_name: null,
-      contact_phone: null,
-      contact_email: null,
-      updated_at: null,
-    }
-  );
+  const empty: CompanySettings = {
+    id: 1,
+    company_name: null,
+    logo_path: null,
+    hq_address: null,
+    branches: null,
+    ci_number: null,
+    ein: null,
+    bank_name: null,
+    bank_account: null,
+    swift: null,
+    payment_terms: null,
+    manager_name: null,
+    manager_phone: null,
+    manager_email: null,
+    contact_name: null,
+    contact_phone: null,
+    contact_email: null,
+    sms_new_request_template: null,
+    sms_won_template: null,
+    sms_update_template: null,
+    updated_at: null,
+  };
+
+  if (!data) return empty;
+
+  return {
+    ...empty,
+    ...(data as CompanySettings),
+    sms_new_request_template:
+      (data as CompanySettings).sms_new_request_template ?? null,
+    sms_won_template: (data as CompanySettings).sms_won_template ?? null,
+    sms_update_template: (data as CompanySettings).sms_update_template ?? null,
+  };
 }
 
 export async function upsertSettings(

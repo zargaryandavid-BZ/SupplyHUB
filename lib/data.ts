@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabaseServer";
+import { signedAttachmentUrl } from "./storage";
 import type { Partner, Client, ProductRequest, Quote, Message, Dispatch, PartnerFeedback } from "./types";
 
 // ---------- Partners ----------
@@ -230,6 +231,7 @@ export type RequestRow = ProductRequest & {
   partner_count: number;
   partner_names: string[];
   quote_count: number;
+  awaiting_count: number; // dispatched but no quote yet
   best_price: number | null;
   open_questions: number;
 };
@@ -316,6 +318,7 @@ export async function managerRequests(): Promise<RequestRow[]> {
       partner_count: disps.length,
       partner_names,
       quote_count: prQuotes.length,
+      awaiting_count: disps.length - prQuotes.length,
       best_price: prices.length ? Math.min(...prices) : null,
       open_questions: questionsByRequest.get(pr.id) ?? 0,
     };
@@ -429,6 +432,8 @@ export async function requestDetail(id: number) {
 
 // ---------- Partner portal view ----------
 
+export type AttachmentUrl = { key: string; url: string; name: string };
+
 export type PartnerRequestRow = ProductRequest & {
   dispatch_id: number;
   quote_id: number | null;
@@ -438,6 +443,7 @@ export type PartnerRequestRow = ProductRequest & {
   lead_time_days: number | null;
   valid_until: string | null;
   conditions: string | null;
+  attachmentUrls: AttachmentUrl[];
 };
 
 export async function partnerRequests(partnerId: number): Promise<PartnerRequestRow[]> {
@@ -468,7 +474,7 @@ export async function partnerRequests(partnerId: number): Promise<PartnerRequest
     dispatches.map((d) => [d.request_id, d])
   );
 
-  return (requests ?? [])
+  const rows = (requests ?? [])
     .map((pr) => {
       const disp = dispatchByRequest[pr.id];
       const q = disp ? quoteByDispatch[disp.id] : undefined;
@@ -482,10 +488,32 @@ export async function partnerRequests(partnerId: number): Promise<PartnerRequest
         lead_time_days: q?.lead_time_days ?? null,
         valid_until: q?.valid_until ?? null,
         conditions: q?.conditions ?? null,
+        attachmentUrls: [] as AttachmentUrl[],
       };
     })
     .filter((r) => r.dispatch_id !== 0)
     .sort((a, b) => b.id - a.id);
+
+  // Resolve signed attachment URLs for all rows in parallel
+  await Promise.all(
+    rows.map(async (r) => {
+      if (!r.attachments) return;
+      try {
+        const keys: string[] = JSON.parse(r.attachments);
+        r.attachmentUrls = await Promise.all(
+          keys.map(async (key) => ({
+            key,
+            url: await signedAttachmentUrl(key),
+            name: key.split("/").pop() ?? key,
+          }))
+        );
+      } catch {
+        /* malformed JSON — skip */
+      }
+    })
+  );
+
+  return rows;
 }
 
 export async function partnerRequestDetail(partnerId: number, requestId: number) {

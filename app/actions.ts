@@ -21,7 +21,14 @@ import {
   PRODUCT_IMAGE_ALLOWED_TYPES,
   PRODUCT_IMAGE_MAX_BYTES,
 } from "@/lib/storage";
-import { upsertSettings } from "@/lib/settings";
+import { getSettings, upsertSettings } from "@/lib/settings";
+import {
+  DEFAULT_SMS_NEW_REQUEST,
+  DEFAULT_SMS_WON,
+  DEFAULT_SMS_UPDATE,
+  fillTemplate,
+  partnerRequestLink,
+} from "@/lib/notifyTemplates";
 import {
   addPartner,
   updatePartner as libUpdatePartner,
@@ -40,18 +47,6 @@ export async function setActor(formData: FormData) {
   if (actor === "manager") redirect("/manager");
   if (actor.startsWith("partner:")) redirect("/partner");
   redirect("/");
-}
-
-async function notifyPartner(pid: number, subject: string, body: string) {
-  const p = await partnerById(pid);
-  if (p) {
-    notify({
-      to: `${p.email || p.company} / ${p.phone || ""}`,
-      channels: ["email", "sms"],
-      subject,
-      body,
-    });
-  }
 }
 
 /** Last quotes per partner for a product (used on new-request form). */
@@ -84,20 +79,23 @@ export async function createRequest(formData: FormData) {
   const finishing = finishingValues.length ? finishingValues.join(", ") : null;
 
   // Required: product (category) + quantity. Title is optional — derive it if blank.
-  if (!category || !quantity) redirect("/manager/requests/new?error=1");
-  const finalTitle = title || `${quantity ? quantity.toLocaleString() + " × " : ""}${category}`;
+  if (!category) redirect("/manager/requests/new?error=product");
+  if (!quantity) redirect("/manager/requests/new?error=quantity");
+  if (!partnerIds.length) redirect("/manager/requests/new?error=partners");
+  const finalTitle = title || `${quantity.toLocaleString()} × ${category}`;
 
+  // client_id is optional — null avoids FK failures from a fake id 0
   const { data: order } = await sb
     .from("orders")
     .insert({
-      client_id: 0,
+      client_id: null,
       order_number: orderNumber || `ORD-${Date.now()}`,
       notes: null,
       created_at: now(),
     })
     .select("id")
     .single();
-  if (!order) redirect("/manager/requests/new?error=1");
+  if (!order) redirect("/manager/requests/new?error=save");
   const orderId = order.id as number;
 
   // Save uploaded files before inserting the request row
@@ -124,7 +122,7 @@ export async function createRequest(formData: FormData) {
     })
     .select("id")
     .single();
-  if (!req) redirect("/manager/requests/new?error=1");
+  if (!req) redirect("/manager/requests/new?error=save");
   const reqId = req.id as number;
 
   // Save attachment files now that we have the request ID
@@ -142,17 +140,38 @@ export async function createRequest(formData: FormData) {
       .eq("id", reqId);
   }
 
+  const settings = await getSettings();
+  const companyName = settings.company_name?.trim() || "our print house";
+  const newRequestTemplate =
+    settings.sms_new_request_template?.trim() || DEFAULT_SMS_NEW_REQUEST;
+
   for (const pid of partnerIds) {
     await sb.from("dispatches").insert({
       request_id: reqId,
       partner_id: pid,
       sent_at: now(),
     });
-    await notifyPartner(
-      pid,
-      `New quote request: ${title}`,
-      `Please submit your price and lead time by ${neededBy || "soon"}.`
-    );
+    const p = await partnerById(pid);
+    if (!p) continue;
+    const link = partnerRequestLink({
+      portalToken: p.portal_token,
+      requestId: reqId,
+    });
+    const body = fillTemplate(newRequestTemplate, {
+      company_name: companyName,
+      partner_name: p.company,
+      title: finalTitle,
+      quantity: quantity?.toLocaleString() ?? "",
+      needed_by: neededBy || "soon",
+      link,
+    });
+    await notify({
+      to: `${p.email || p.company} / ${p.phone || ""}`,
+      phone: p.phone,
+      channels: ["email", "sms"],
+      subject: `New order request from ${companyName} (SupplyHUB)`,
+      body,
+    });
   }
 
   revalidatePath("/manager");
@@ -249,7 +268,57 @@ export async function updateRequest(formData: FormData) {
 
   revalidatePath("/manager");
   revalidatePath(`/manager/requests/${id}`);
-  redirect(`/manager/requests/${id}?saved=1`);
+  redirect(`/manager/requests/${id}?saved=1&notify=1`);
+}
+
+// ---------- Manager: notify all dispatched partners about a request update ----------
+export async function notifyPartnersUpdate(formData: FormData) {
+  const actor = await getActor();
+  if (actor.role !== "manager") redirect("/");
+
+  const sb = supabaseAdmin();
+  const requestId = Number(formData.get("request_id"));
+  const messageOverride = (formData.get("message") as string | null)?.trim() || null;
+
+  const { data: reqRow } = await sb
+    .from("product_requests")
+    .select("title, quantity, needed_by")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!reqRow) return;
+
+  const settings = await getSettings();
+  const companyName = settings.company_name?.trim() || "our print house";
+  const template = messageOverride || settings.sms_update_template?.trim() || DEFAULT_SMS_UPDATE;
+
+  const { data: dispatches } = await sb
+    .from("dispatches")
+    .select("partner_id")
+    .eq("request_id", requestId);
+
+  for (const d of dispatches ?? []) {
+    const p = await partnerById(d.partner_id as number);
+    if (!p) continue;
+    const link = partnerRequestLink({ portalToken: p.portal_token, requestId });
+    const body = fillTemplate(template, {
+      company_name: companyName,
+      partner_name: p.company,
+      title: reqRow.title,
+      quantity: reqRow.quantity != null ? Number(reqRow.quantity).toLocaleString() : "",
+      needed_by: reqRow.needed_by || "",
+      link,
+    });
+    await notify({
+      to: `${p.email || p.company} / ${p.phone || ""}`,
+      phone: p.phone,
+      channels: ["sms"],
+      subject: `Request updated — ${reqRow.title}`,
+      body,
+    });
+  }
+
+  revalidatePath(`/manager/requests/${requestId}`);
+  redirect(`/manager/requests/${requestId}?saved=1`);
 }
 
 // ---------- Manager: send an existing request to more partners ----------
@@ -260,7 +329,7 @@ export async function dispatchToPartners(formData: FormData) {
 
   const { data: reqRow } = await sb
     .from("product_requests")
-    .select("title, needed_by, status")
+    .select("title, quantity, needed_by, status")
     .eq("id", requestId)
     .maybeSingle();
   if (!reqRow) redirect("/manager");
@@ -271,6 +340,11 @@ export async function dispatchToPartners(formData: FormData) {
     .eq("request_id", requestId);
   const alreadySent = new Set((existing ?? []).map((d) => d.partner_id as number));
 
+  const settings = await getSettings();
+  const companyName = settings.company_name?.trim() || "our print house";
+  const newRequestTemplate =
+    settings.sms_new_request_template?.trim() || DEFAULT_SMS_NEW_REQUEST;
+
   for (const pid of partnerIds) {
     if (alreadySent.has(pid)) continue;
     await sb.from("dispatches").insert({
@@ -278,11 +352,28 @@ export async function dispatchToPartners(formData: FormData) {
       partner_id: pid,
       sent_at: now(),
     });
-    await notifyPartner(
-      pid,
-      `New quote request: ${reqRow.title}`,
-      `Please submit your price and lead time by ${reqRow.needed_by || "soon"}.`
-    );
+    const p = await partnerById(pid);
+    if (!p) continue;
+    const link = partnerRequestLink({
+      portalToken: p.portal_token,
+      requestId,
+    });
+    const body = fillTemplate(newRequestTemplate, {
+      company_name: companyName,
+      partner_name: p.company,
+      title: reqRow.title,
+      quantity:
+        reqRow.quantity != null ? Number(reqRow.quantity).toLocaleString() : "",
+      needed_by: reqRow.needed_by || "soon",
+      link,
+    });
+    await notify({
+      to: `${p.email || p.company} / ${p.phone || ""}`,
+      phone: p.phone,
+      channels: ["email", "sms"],
+      subject: `New order request from ${companyName} (SupplyHUB)`,
+      body,
+    });
   }
 
   if (reqRow.status === "draft" && partnerIds.length) {
@@ -383,13 +474,31 @@ export async function awardQuote(formData: FormData) {
 
   // Notify partners — batch-fetch to avoid N+1
   if (dispatchIds.length) {
+    const settings = await getSettings();
+    const companyName = settings.company_name?.trim() || "our print house";
+    const wonTemplate = settings.sms_won_template?.trim() || DEFAULT_SMS_WON;
+
+    const { data: requestRow } = await sb
+      .from("product_requests")
+      .select("title, quantity, needed_by")
+      .eq("id", requestId)
+      .maybeSingle();
+    const { data: wonQuote } = await sb
+      .from("quotes")
+      .select("price, currency, lead_time_days")
+      .eq("id", quoteId)
+      .maybeSingle();
+
     const { data: quotes } = await sb
       .from("quotes")
       .select("id, dispatch_id, status")
       .in("dispatch_id", dispatchIds);
     const partnerIds = [...new Set((dispatches ?? []).map((d) => d.partner_id as number))];
     const { data: partners } = partnerIds.length
-      ? await sb.from("partners").select("id, company, email, phone").in("id", partnerIds)
+      ? await sb
+          .from("partners")
+          .select("id, company, email, phone, portal_token")
+          .in("id", partnerIds)
       : { data: [] };
     const partnersMap = Object.fromEntries((partners ?? []).map((p) => [p.id, p]));
     const dispatchToPartner = Object.fromEntries(
@@ -397,17 +506,46 @@ export async function awardQuote(formData: FormData) {
     );
     for (const q of quotes ?? []) {
       const pid = dispatchToPartner[q.dispatch_id];
-      const p = partnersMap[pid] as { company: string; email: string | null; phone: string | null } | undefined;
+      const p = partnersMap[pid] as
+        | {
+            company: string;
+            email: string | null;
+            phone: string | null;
+            portal_token: string | null;
+          }
+        | undefined;
       if (!p) continue;
       if (q.status === "won") {
-        notify({
+        const link = partnerRequestLink({
+          portalToken: p.portal_token,
+          requestId,
+        });
+        const body = fillTemplate(wonTemplate, {
+          company_name: companyName,
+          partner_name: p.company,
+          title: requestRow?.title ?? `Request #${requestId}`,
+          quantity:
+            requestRow?.quantity != null
+              ? Number(requestRow.quantity).toLocaleString()
+              : "",
+          price:
+            wonQuote?.price != null
+              ? Number(wonQuote.price).toLocaleString()
+              : "",
+          currency: wonQuote?.currency || "USD",
+          lead_time_days: wonQuote?.lead_time_days ?? "",
+          needed_by: requestRow?.needed_by || "—",
+          link,
+        });
+        await notify({
           to: `${p.email} / ${p.phone}`,
+          phone: p.phone,
           channels: ["email", "sms"],
-          subject: "You won this order!",
-          body: `Congratulations ${p.company}, your quote was selected.`,
+          subject: `You won the project from ${companyName} (SupplyHUB)`,
+          body,
         });
       } else {
-        notify({
+        await notify({
           to: p.email || p.company,
           channels: ["email"],
           subject: "Order awarded to another partner",
@@ -689,6 +827,9 @@ export async function saveSettings(formData: FormData) {
     contact_name: str("contact_name"),
     contact_phone: str("contact_phone"),
     contact_email: str("contact_email"),
+    sms_new_request_template: str("sms_new_request_template"),
+    sms_won_template: str("sms_won_template"),
+    sms_update_template: str("sms_update_template"),
   };
 
   const logoFile = formData.get("company_logo") as File | null;
@@ -755,4 +896,128 @@ export async function togglePartnerActive(formData: FormData) {
   revalidatePath("/manager/partners");
   revalidatePath(`/manager/partners/${id}/edit`);
   redirect("/manager/partners");
+}
+
+// ---------- Manager: send reminder to non-responding partners ----------
+export async function sendReminder(formData: FormData) {
+  const actor = await getActor();
+  if (actor.role !== "manager") redirect("/");
+
+  const requestId = Number(formData.get("request_id"));
+  const sb = supabaseAdmin();
+
+  const { data: reqRow } = await sb
+    .from("product_requests")
+    .select("title, quantity, needed_by")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!reqRow) redirect("/manager");
+
+  // Find dispatches with no quote yet
+  const { data: dispatches } = await sb
+    .from("dispatches")
+    .select("id, partner_id")
+    .eq("request_id", requestId);
+  if (!dispatches?.length) redirect("/manager");
+
+  const dispatchIds = dispatches.map((d) => d.id as number);
+  const { data: existingQuotes } = await sb
+    .from("quotes")
+    .select("dispatch_id")
+    .in("dispatch_id", dispatchIds);
+  const quotedDispatchIds = new Set((existingQuotes ?? []).map((q) => q.dispatch_id as number));
+
+  const settings = await getSettings();
+  const companyName = settings.company_name?.trim() || "our print house";
+
+  let reminded = 0;
+  for (const d of dispatches) {
+    if (quotedDispatchIds.has(d.id)) continue; // already quoted
+    const p = await partnerById(d.partner_id);
+    if (!p) continue;
+    const link = partnerRequestLink({ portalToken: p.portal_token, requestId });
+    const body = `Hi ${p.company},\n\nThis is a friendly reminder about our open request for "${reqRow.title}"${reqRow.quantity ? ` (qty: ${Number(reqRow.quantity).toLocaleString()})` : ""}${reqRow.needed_by ? `, needed by ${reqRow.needed_by}` : ""}.\n\nPlease submit your quote at your earliest convenience:\n${link}\n\nThanks,\n${companyName}`;
+    await notify({
+      to: `${p.email || p.company} / ${p.phone || ""}`,
+      phone: p.phone,
+      channels: ["email", "sms"],
+      subject: `Reminder: quote requested for "${reqRow.title}"`,
+      body,
+    });
+    // Log reminder as a manager message in the thread
+    await sb.from("messages").insert({
+      request_id: requestId,
+      partner_id: d.partner_id,
+      author_role: "manager",
+      text: `📩 Reminder sent to ${p.company} — awaiting quote.`,
+      created_at: now(),
+    });
+    reminded++;
+  }
+
+  revalidatePath("/manager");
+  revalidatePath(`/manager/requests/${requestId}`);
+  redirect(`/manager?reminded=${reminded}`);
+}
+
+// ---------- Manager: quick status update ----------
+export async function updateRequestStatus(formData: FormData) {
+  const actor = await getActor();
+  if (actor.role !== "manager") redirect("/");
+
+  const id = Number(formData.get("id"));
+  const status = String(formData.get("status") || "").trim();
+  const allowed = ["draft", "sent", "quoting", "clarifying", "awarded", "closed"];
+  if (!id || !allowed.includes(status)) redirect("/manager");
+
+  await supabaseAdmin()
+    .from("product_requests")
+    .update({ status })
+    .eq("id", id);
+
+  revalidatePath("/manager");
+  revalidatePath(`/manager/requests/${id}`);
+}
+
+// ---------- Manager: duplicate a request ----------
+export async function duplicateRequest(formData: FormData) {
+  const actor = await getActor();
+  if (actor.role !== "manager") redirect("/");
+
+  const id = Number(formData.get("id"));
+  const sb = supabaseAdmin();
+
+  const { data: src } = await sb
+    .from("product_requests")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!src) redirect("/manager");
+
+  const { data: newReq } = await sb
+    .from("product_requests")
+    .insert({
+      order_id: src.order_id,
+      title: `${src.title} (copy)`,
+      category: src.category,
+      specs: src.specs,
+      quantity: src.quantity,
+      needed_by: null, // clear date — manager should set a new one
+      hide_client: src.hide_client,
+      status: "draft",
+      standard_size: src.standard_size,
+      width: src.width,
+      height: src.height,
+      depth: src.depth,
+      size_unit: src.size_unit,
+      material: src.material,
+      finishing: src.finishing,
+      attachments: null, // don't copy attachments
+      created_at: now(),
+    })
+    .select("id")
+    .single();
+
+  revalidatePath("/manager");
+  redirect(`/manager/requests/${newReq!.id}`);
 }

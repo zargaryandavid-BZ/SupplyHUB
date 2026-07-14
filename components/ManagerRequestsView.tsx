@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { RequestRow } from "@/lib/data";
 import { STATUS_ORDER, STATUS_LABELS } from "@/lib/types";
 import { Badge } from "@/components/Badge";
+import { RequestActionsMenu } from "@/components/RequestActionsMenu";
 
 type ViewMode = "kanban" | "table";
 
@@ -40,7 +41,16 @@ function matchesQuery(r: RequestRow, q: string): boolean {
   return haystack.includes(q);
 }
 
-export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
+type Actions = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sendReminder: (fd: FormData) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updateStatus: (fd: FormData) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  duplicate: (fd: FormData) => Promise<any>;
+};
+
+export function ManagerRequestsView({ requests, actions }: { requests: RequestRow[]; actions: Actions }) {
   const [view, setView] = useState<ViewMode>("table");
   const [query, setQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
@@ -374,6 +384,7 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
               <th>Partners</th>
               <th>Quotes</th>
               <th>Best price</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -426,6 +437,16 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
                   <td className="small">{r.quote_count}</td>
                   <td className="small">
                     {r.best_price != null ? `$${r.best_price.toLocaleString()}` : "—"}
+                  </td>
+                  <td>
+                    <RequestActionsMenu
+                      requestId={r.id}
+                      currentStatus={r.status}
+                      awaitingCount={r.awaiting_count}
+                      sendReminder={actions.sendReminder}
+                      updateStatus={actions.updateStatus}
+                      duplicate={actions.duplicate}
+                    />
                   </td>
                 </tr>
               );
