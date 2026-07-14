@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState } from "react";
 import type { Partner } from "@/lib/types";
 import type { PartnerActivityRow } from "@/lib/data";
 import { Badge } from "@/components/Badge";
+import { FeedbackModal } from "@/components/FeedbackModal";
 
 type Stats = { sent: number; won: number; winRate: number };
 
@@ -18,8 +19,23 @@ type Activity = {
     awaiting: number;
     winRate: number;
     committed: Array<{ currency: string; total: number }>;
+    avgRating: number | null;
+    feedbackCount: number;
   };
 };
+
+function StarsDisplay({ value, max = 5 }: { value: number | null; max?: number }) {
+  if (value == null) return <span className="muted">—</span>;
+  const full = Math.round(value);
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+      {Array.from({ length: max }, (_, i) => (
+        <span key={i} style={{ fontSize: 14, color: i < full ? "#f59e0b" : "#d1d5db", lineHeight: 1 }}>★</span>
+      ))}
+      <span style={{ fontSize: 12, fontWeight: 600, color: "#92400e", marginLeft: 4 }}>{value.toFixed(1)}</span>
+    </span>
+  );
+}
 
 export type PartnerDirectoryRow = {
   partner: Partner;
@@ -178,11 +194,24 @@ function ProductModal({ partner, onClose }: { partner: { company: string; produc
   );
 }
 
-function ActivityPanel({ activity }: { activity: Activity }) {
+function ActivityPanel({
+  activity,
+  partnerId,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saveFeedback,
+}: {
+  activity: Activity;
+  partnerId: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saveFeedback: (fd: FormData) => Promise<any>;
+}) {
   const { summary, rows } = activity;
+  const [feedbackRow, setFeedbackRow] = useState<PartnerActivityRow | null>(null);
+
   return (
     <div style={{ padding: "14px 6px" }}>
-      <div className="grid cols-4" style={{ marginBottom: 14 }}>
+      {/* Summary stat tiles */}
+      <div className="grid cols-5" style={{ marginBottom: 14 }}>
         <div>
           <div className="small muted">Offers sent</div>
           <div style={{ fontSize: 20, fontWeight: 700 }}>{summary.sent}</div>
@@ -191,10 +220,7 @@ function ActivityPanel({ activity }: { activity: Activity }) {
           <div className="small muted">Responded</div>
           <div style={{ fontSize: 20, fontWeight: 700 }}>
             {summary.responded}
-            <span className="small muted" style={{ fontWeight: 400 }}>
-              {" "}
-              ({summary.awaiting} awaiting)
-            </span>
+            <span className="small muted" style={{ fontWeight: 400 }}> ({summary.awaiting} awaiting)</span>
           </div>
         </div>
         <div>
@@ -212,6 +238,20 @@ function ActivityPanel({ activity }: { activity: Activity }) {
               : summary.committed.map((c) => `${c.currency} ${c.total.toLocaleString()}`).join(" · ")}
           </div>
         </div>
+        <div>
+          <div className="small muted">Avg rating</div>
+          <div style={{ fontSize: 20, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+            {summary.avgRating != null ? (
+              <>
+                <span style={{ color: "#f59e0b" }}>★</span>
+                <span>{summary.avgRating.toFixed(1)}</span>
+                <span className="small muted" style={{ fontWeight: 400 }}>({summary.feedbackCount})</span>
+              </>
+            ) : (
+              <span className="muted" style={{ fontSize: 16 }}>—</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -223,46 +263,116 @@ function ActivityPanel({ activity }: { activity: Activity }) {
               <th>Request</th>
               <th>Client / order</th>
               <th>Sent</th>
-              <th>Request status</th>
-              <th>Response</th>
-              <th>Amount</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Total price</th>
+              <th>Unit price</th>
               <th>Lead time</th>
+              <th>Feedback</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.dispatch_id}>
-                <td>
-                  <Link href={`/manager/requests/${r.request_id}`}>{r.request_title}</Link>
-                </td>
-                <td className="small">
-                  {r.client_name} · {r.order_number}
-                </td>
-                <td className="small">
-                  {r.sent_at
-                    ? new Date(r.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                    : "—"}
-                </td>
-                <td>
-                  <Badge status={r.request_status} />
-                </td>
-                <td>
-                  {r.quote_status ? (
-                    <Badge status={r.quote_status} />
-                  ) : (
-                    <span className="small muted">Awaiting quote…</span>
-                  )}
-                </td>
-                <td className="small">
-                  {r.price != null ? `${r.currency} ${r.price.toLocaleString()}` : "—"}
-                </td>
-                <td className="small">
-                  {r.lead_time_days != null ? `${r.lead_time_days} days` : "—"}
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const unitPrice =
+                r.price != null && r.quantity != null && r.quantity > 0
+                  ? r.price / r.quantity
+                  : null;
+              const isWon = r.quote_status === "won";
+              const hasFeedback = r.feedback_id != null;
+              const dimAvg = hasFeedback
+                ? (() => {
+                    const dims = [r.quality_rating, r.quantity_rating, r.satisfaction_rating, r.timing_rating]
+                      .filter((v): v is number => v != null);
+                    return dims.length > 0 ? dims.reduce((a, b) => a + b, 0) / dims.length : null;
+                  })()
+                : null;
+              return (
+                <tr key={r.dispatch_id} style={isWon ? { background: "#fffbeb" } : undefined}>
+                  <td>
+                    <Link href={`/manager/requests/${r.request_id}`}>{r.request_title}</Link>
+                  </td>
+                  <td className="small">{r.client_name} · {r.order_number}</td>
+                  <td className="small">
+                    {r.sent_at
+                      ? new Date(r.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                      : "—"}
+                  </td>
+                  <td className="small">{r.quantity != null ? r.quantity.toLocaleString() : "—"}</td>
+                  <td>
+                    {r.quote_status ? (
+                      <Badge status={r.quote_status} />
+                    ) : (
+                      <span className="small muted">Awaiting quote…</span>
+                    )}
+                  </td>
+                  <td className="small">
+                    {r.price != null ? `${r.currency ?? "$"} ${r.price.toLocaleString()}` : "—"}
+                  </td>
+                  <td className="small">
+                    {unitPrice != null
+                      ? `${r.currency ?? "$"} ${unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : "—"}
+                  </td>
+                  <td className="small">
+                    {r.lead_time_days != null ? `${r.lead_time_days} days` : "—"}
+                  </td>
+                  <td>
+                    {isWon ? (
+                      <button
+                        type="button"
+                        onClick={() => setFeedbackRow(r)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          background: hasFeedback ? "#fef3c7" : "var(--indigo)",
+                          color: hasFeedback ? "#92400e" : "#fff",
+                          border: hasFeedback ? "1px solid #fcd34d" : "none",
+                          borderRadius: 6, padding: "4px 10px",
+                          cursor: "pointer", fontSize: 12, fontWeight: 600,
+                          fontFamily: "inherit", whiteSpace: "nowrap",
+                        }}
+                        title={hasFeedback ? "Edit feedback" : "Add feedback"}
+                      >
+                        {hasFeedback ? (
+                          <>
+                            <span style={{ color: "#f59e0b" }}>★</span>
+                            {dimAvg != null ? dimAvg.toFixed(1) : "Edit"}
+                          </>
+                        ) : (
+                          <>+ Feedback</>
+                        )}
+                      </button>
+                    ) : (
+                      <span className="small muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+      )}
+
+      {/* Feedback modal */}
+      {feedbackRow && (
+        <FeedbackModal
+          requestTitle={feedbackRow.request_title}
+          dispatchId={feedbackRow.dispatch_id}
+          partnerId={partnerId}
+          requestId={feedbackRow.request_id}
+          existing={
+            feedbackRow.feedback_id != null
+              ? {
+                  quality_rating: feedbackRow.quality_rating,
+                  quantity_rating: feedbackRow.quantity_rating,
+                  satisfaction_rating: feedbackRow.satisfaction_rating,
+                  timing_rating: feedbackRow.timing_rating,
+                  feedback_notes: feedbackRow.feedback_notes,
+                }
+              : null
+          }
+          saveFeedback={saveFeedback}
+          onClose={() => setFeedbackRow(null)}
+        />
       )}
     </div>
   );
@@ -272,12 +382,15 @@ export function PartnerDirectoryTable({
   rows,
   deletePartner,
   togglePartnerActive,
+  saveFeedback,
 }: {
   rows: PartnerDirectoryRow[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   deletePartner: (formData: FormData) => Promise<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   togglePartnerActive: (formData: FormData) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saveFeedback: (formData: FormData) => Promise<any>;
 }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [productFilter, setProductFilter] = useState("");
@@ -374,6 +487,7 @@ export function PartnerDirectoryTable({
           <th>Avg delivery</th>
           <th>Channels</th>
           <th>Win rate</th>
+          <th>Rating</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -460,6 +574,14 @@ export function PartnerDirectoryTable({
                   {s.sent > 0 && <span className="small muted"> ({s.sent})</span>}
                 </td>
                 <td>
+                  <StarsDisplay value={activity.summary.avgRating} />
+                  {activity.summary.feedbackCount > 0 && (
+                    <div className="small muted" style={{ marginTop: 2 }}>
+                      {activity.summary.feedbackCount} review{activity.summary.feedbackCount !== 1 ? "s" : ""}
+                    </div>
+                  )}
+                </td>
+                <td>
                   <div className="inline-actions">
                     <button
                       type="button"
@@ -542,8 +664,12 @@ export function PartnerDirectoryTable({
               </tr>
               {isOpen && (
                 <tr>
-                  <td colSpan={8} style={{ background: "#fafafa", padding: "0 16px" }}>
-                    <ActivityPanel activity={activity} />
+                  <td colSpan={9} style={{ background: "#fafafa", padding: "0 16px" }}>
+                    <ActivityPanel
+                      activity={activity}
+                      partnerId={p.id}
+                      saveFeedback={saveFeedback}
+                    />
                   </td>
                 </tr>
               )}

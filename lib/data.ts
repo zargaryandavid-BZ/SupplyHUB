@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "./supabaseServer";
-import type { Partner, Client, ProductRequest, Quote, Message, Dispatch } from "./types";
+import type { Partner, Client, ProductRequest, Quote, Message, Dispatch, PartnerFeedback } from "./types";
 
 // ---------- Partners ----------
 
@@ -54,6 +54,7 @@ export type PartnerActivityRow = {
   request_status: string;
   client_name: string;
   order_number: string;
+  quantity: number | null;
   sent_at: string | null;
   quote_id: number | null;
   quote_status: string | null;
@@ -62,6 +63,13 @@ export type PartnerActivityRow = {
   lead_time_days: number | null;
   valid_until: string | null;
   revision: number | null;
+  // feedback
+  feedback_id: number | null;
+  quality_rating: number | null;
+  quantity_rating: number | null;
+  satisfaction_rating: number | null;
+  timing_rating: number | null;
+  feedback_notes: string | null;
 };
 
 /** Full quote/response history for a single partner, for the manager's partner detail view. */
@@ -75,9 +83,20 @@ export async function partnerActivity(partnerId: number): Promise<{
     awaiting: number;
     winRate: number;
     committed: Array<{ currency: string; total: number }>;
+    avgRating: number | null;
+    feedbackCount: number;
   };
 }> {
   const sb = supabaseAdmin();
+
+  const empty = {
+    rows: [] as PartnerActivityRow[],
+    summary: {
+      sent: 0, responded: 0, won: 0, lost: 0, awaiting: 0,
+      winRate: 0, committed: [] as Array<{ currency: string; total: number }>,
+      avgRating: null as number | null, feedbackCount: 0,
+    },
+  };
 
   const { data: dispatchRows } = await sb
     .from("dispatches")
@@ -85,17 +104,12 @@ export async function partnerActivity(partnerId: number): Promise<{
     .eq("partner_id", partnerId)
     .order("sent_at", { ascending: false });
   const dispatches = (dispatchRows ?? []) as Dispatch[];
-  if (!dispatches.length) {
-    return {
-      rows: [],
-      summary: { sent: 0, responded: 0, won: 0, lost: 0, awaiting: 0, winRate: 0, committed: [] },
-    };
-  }
+  if (!dispatches.length) return empty;
 
   const requestIds = [...new Set(dispatches.map((d) => d.request_id))];
   const { data: requestRows } = await sb
     .from("product_requests")
-    .select("id, title, status, order_id")
+    .select("id, title, status, order_id, quantity")
     .in("id", requestIds);
   const requestsMap = Object.fromEntries((requestRows ?? []).map((r) => [r.id, r]));
 
@@ -117,13 +131,23 @@ export async function partnerActivity(partnerId: number): Promise<{
     ((quoteRows ?? []) as Quote[]).map((q) => [q.dispatch_id, q])
   );
 
+  // Fetch feedback for all dispatches of this partner
+  const { data: feedbackRows } = await sb
+    .from("partner_feedback")
+    .select("*")
+    .eq("partner_id", partnerId);
+  const feedbackByDispatch = Object.fromEntries(
+    ((feedbackRows ?? []) as PartnerFeedback[]).map((f) => [f.dispatch_id, f])
+  );
+
   const rows: PartnerActivityRow[] = dispatches.map((d) => {
     const req = requestsMap[d.request_id] as
-      | { id: number; title: string; status: string; order_id: number }
+      | { id: number; title: string; status: string; order_id: number; quantity: number | null }
       | undefined;
     const order = req ? (ordersMap[req.order_id] as { id: number; client_id: number; order_number: string } | undefined) : undefined;
     const client = order ? (clientsMap[order.client_id] as { id: number; name: string } | undefined) : undefined;
     const q = quotesByDispatch[d.id];
+    const fb = feedbackByDispatch[d.id] as PartnerFeedback | undefined;
     return {
       dispatch_id: d.id,
       request_id: d.request_id,
@@ -131,6 +155,7 @@ export async function partnerActivity(partnerId: number): Promise<{
       request_status: req?.status ?? "—",
       client_name: client?.name ?? "—",
       order_number: order?.order_number ?? "—",
+      quantity: req?.quantity ?? null,
       sent_at: d.sent_at,
       quote_id: q?.id ?? null,
       quote_status: q?.status ?? null,
@@ -139,6 +164,12 @@ export async function partnerActivity(partnerId: number): Promise<{
       lead_time_days: q?.lead_time_days ?? null,
       valid_until: q?.valid_until ?? null,
       revision: q?.revision ?? null,
+      feedback_id: fb?.id ?? null,
+      quality_rating: fb?.quality_rating ?? null,
+      quantity_rating: fb?.quantity_rating ?? null,
+      satisfaction_rating: fb?.satisfaction_rating ?? null,
+      timing_rating: fb?.timing_rating ?? null,
+      feedback_notes: fb?.notes ?? null,
     };
   });
 
@@ -156,16 +187,27 @@ export async function partnerActivity(partnerId: number): Promise<{
     }
   }
 
+  // Compute partner average rating across all 4 dimensions of all feedback
+  const feedbackRows2 = rows.filter((r) => r.feedback_id != null);
+  const feedbackCount = feedbackRows2.length;
+  let avgRating: number | null = null;
+  if (feedbackCount > 0) {
+    const total = feedbackRows2.reduce((sum, r) => {
+      const dims = [r.quality_rating, r.quantity_rating, r.satisfaction_rating, r.timing_rating]
+        .filter((v): v is number => v != null);
+      return sum + (dims.length > 0 ? dims.reduce((a, b) => a + b, 0) / dims.length : 0);
+    }, 0);
+    avgRating = Math.round((total / feedbackCount) * 10) / 10;
+  }
+
   return {
     rows,
     summary: {
-      sent,
-      responded,
-      won,
-      lost,
-      awaiting,
+      sent, responded, won, lost, awaiting,
       winRate: sent ? Math.round((won / sent) * 100) : 0,
       committed: [...committedMap.entries()].map(([currency, total]) => ({ currency, total })),
+      avgRating,
+      feedbackCount,
     },
   };
 }
@@ -482,4 +524,111 @@ export async function partnerRequestDetail(partnerId: number, requestId: number)
   const messages = (msgRows ?? []) as Message[];
 
   return { row, quote, messages };
+}
+
+// ---------- Previous quotes by product (manager new-request) ----------
+
+export type PreviousProductQuote = {
+  partner_id: number;
+  request_id: number;
+  request_title: string;
+  quantity: number | null;
+  price: number;
+  currency: string;
+  lead_time_days: number | null;
+  status: string;
+  created_at: string;
+  revision: number;
+};
+
+/** Last N submitted quotes per partner for a product name (matched via request category). */
+export async function recentQuotesForProduct(
+  productName: string,
+  perPartner = 5
+): Promise<PreviousProductQuote[]> {
+  const name = productName.trim();
+  if (!name) return [];
+
+  const sb = supabaseAdmin();
+  const { data: requestRows } = await sb
+    .from("product_requests")
+    .select("id, title, category, quantity")
+    .ilike("category", name);
+
+  const requests = (requestRows ?? []).filter(
+    (r) => String(r.category ?? "").trim().toLowerCase() === name.toLowerCase()
+  ) as Array<{
+    id: number;
+    title: string;
+    category: string | null;
+    quantity: number | null;
+  }>;
+  if (!requests.length) return [];
+
+  const requestsMap = Object.fromEntries(requests.map((r) => [r.id, r]));
+  const requestIds = requests.map((r) => r.id);
+
+  const { data: dispatchRows } = await sb
+    .from("dispatches")
+    .select("id, request_id, partner_id")
+    .in("request_id", requestIds);
+  const dispatches = (dispatchRows ?? []) as Array<{
+    id: number;
+    request_id: number;
+    partner_id: number;
+  }>;
+  if (!dispatches.length) return [];
+
+  const dispatchMap = Object.fromEntries(dispatches.map((d) => [d.id, d]));
+  const dispatchIds = dispatches.map((d) => d.id);
+
+  const { data: quoteRows } = await sb
+    .from("quotes")
+    .select("id, dispatch_id, price, currency, lead_time_days, status, revision, created_at")
+    .in("dispatch_id", dispatchIds)
+    .not("price", "is", null);
+
+  const quotes = ((quoteRows ?? []) as Array<{
+    id: number;
+    dispatch_id: number;
+    price: number | null;
+    currency: string;
+    lead_time_days: number | null;
+    status: string;
+    revision: number;
+    created_at: string;
+  }>)
+    .filter((q) => q.price != null)
+    .map((q) => {
+      const d = dispatchMap[q.dispatch_id];
+      const req = d ? requestsMap[d.request_id] : undefined;
+      return {
+        partner_id: d?.partner_id ?? 0,
+        request_id: d?.request_id ?? 0,
+        request_title: req?.title ?? "—",
+        quantity: req?.quantity ?? null,
+        price: q.price as number,
+        currency: q.currency || "USD",
+        lead_time_days: q.lead_time_days,
+        status: q.status,
+        created_at: q.created_at,
+        revision: q.revision,
+      } satisfies PreviousProductQuote;
+    })
+    .filter((q) => q.partner_id > 0)
+    .sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    });
+
+  const counts = new Map<number, number>();
+  const limited: PreviousProductQuote[] = [];
+  for (const q of quotes) {
+    const n = counts.get(q.partner_id) ?? 0;
+    if (n >= perPartner) continue;
+    counts.set(q.partner_id, n + 1);
+    limited.push(q);
+  }
+  return limited;
 }

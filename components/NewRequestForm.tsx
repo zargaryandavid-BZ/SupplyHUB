@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageUpload } from "./ImageUpload";
+import type { PreviousProductQuote } from "@/lib/data";
 
 export type PartnerProductOption = {
   name: string;
@@ -47,17 +48,37 @@ function offerLabel(o: PartnerProductOption): string {
   return parts.join(" · ");
 }
 
+function formatMoney(currency: string, amount: number): string {
+  return `${currency} ${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function formatQuoteDate(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function unitPrice(q: PreviousProductQuote): number | null {
+  if (q.quantity == null || q.quantity <= 0) return null;
+  return q.price / q.quantity;
+}
+
 export function NewRequestForm({
   partners,
   products,
   createRequest,
+  fetchRecentQuotes,
 }: {
   partners: PartnerOption[];
   products: string[];
   createRequest: (formData: FormData) => Promise<void>;
+  fetchRecentQuotes: (productName: string) => Promise<PreviousProductQuote[]>;
 }) {
   const [selected, setSelected] = useState("");
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const [recentQuotes, setRecentQuotes] = useState<PreviousProductQuote[]>([]);
+  const [quotesPending, setQuotesPending] = useState(false);
 
   // Pre-select partners who offer the chosen product whenever it changes.
   useEffect(() => {
@@ -66,6 +87,30 @@ export function NewRequestForm({
       : [];
     setCheckedIds(new Set(ids));
   }, [selected, partners]);
+
+  // Load last quotes for the selected product (up to 5 per partner).
+  useEffect(() => {
+    if (!selected) {
+      setRecentQuotes([]);
+      setQuotesPending(false);
+      return;
+    }
+    let cancelled = false;
+    setQuotesPending(true);
+    fetchRecentQuotes(selected)
+      .then((rows) => {
+        if (!cancelled) setRecentQuotes(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentQuotes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setQuotesPending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, fetchRecentQuotes]);
 
   function toggle(id: number) {
     setCheckedIds((prev) => {
@@ -80,6 +125,34 @@ export function NewRequestForm({
   const others = selected ? partners.filter((p) => !offering(p, selected)) : partners;
   const canSend = checkedIds.size > 0;
   const isBox = /box/i.test(selected);
+
+  const quotesByPartner = useMemo(() => {
+    const map = new Map<number, PreviousProductQuote[]>();
+    for (const q of recentQuotes) {
+      const list = map.get(q.partner_id) ?? [];
+      list.push(q);
+      map.set(q.partner_id, list);
+    }
+    return map;
+  }, [recentQuotes]);
+
+  const priceRoll = useMemo(() => {
+    if (!recentQuotes.length) return null;
+    const byCurrency = new Map<string, number[]>();
+    for (const q of recentQuotes) {
+      const unit = unitPrice(q);
+      const value = unit ?? q.price;
+      const list = byCurrency.get(q.currency) ?? [];
+      list.push(value);
+      byCurrency.set(q.currency, list);
+    }
+    return [...byCurrency.entries()].map(([currency, values]) => {
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const hasUnits = recentQuotes.some((q) => q.currency === currency && unitPrice(q) != null);
+      return { currency, min, max, hasUnits };
+    });
+  }, [recentQuotes]);
 
   return (
     <form id="new-request-form" action={createRequest}>
@@ -224,17 +297,49 @@ export function NewRequestForm({
             </p>
           )}
 
+          {selected && (
+            <div className="small muted" style={{ margin: "0 0 10px" }}>
+              {quotesPending ? (
+                <>Loading previous quotes…</>
+              ) : priceRoll && priceRoll.length > 0 ? (
+                <>
+                  Recent quote roll:{" "}
+                  {priceRoll.map((r, i) => (
+                    <span key={r.currency}>
+                      {i > 0 ? " · " : ""}
+                      <span style={{ color: "var(--text)", fontWeight: 600 }}>
+                        {r.min === r.max
+                          ? formatMoney(r.currency, r.min)
+                          : `${formatMoney(r.currency, r.min)} – ${formatMoney(r.currency, r.max)}`}
+                      </span>
+                      {r.hasUnits ? " / unit" : ""}
+                    </span>
+                  ))}{" "}
+                  <span>(last up to 5 per partner)</span>
+                </>
+              ) : (
+                <>No previous quotes for this product yet.</>
+              )}
+            </div>
+          )}
+
           {/* Matching partners — pre-selected */}
           {matching.length > 0 && (
             <div className="checks" style={{ gridTemplateColumns: "1fr", gap: 6, marginBottom: 8 }}>
               {matching.map((p) => {
                 const o = offering(p, selected)!;
                 const detail = offerLabel(o);
+                const history = quotesByPartner.get(p.id) ?? [];
                 return (
                   <label
                     key={p.id}
                     className="check"
-                    style={{ padding: "8px 10px", borderColor: "#93c5fd", background: "#eff6ff" }}
+                    style={{
+                      padding: "8px 10px",
+                      borderColor: "#93c5fd",
+                      background: "#eff6ff",
+                      alignItems: "flex-start",
+                    }}
                   >
                     <input
                       type="checkbox"
@@ -242,16 +347,58 @@ export function NewRequestForm({
                       value={p.id}
                       checked={checkedIds.has(p.id)}
                       onChange={() => toggle(p.id)}
+                      style={{ marginTop: 3 }}
                     />
-                    <span>
+                    <span style={{ display: "block", minWidth: 0 }}>
                       <strong>{p.company}</strong>
                       {detail && (
                         <>
                           {" "}
                           <span className="small" style={{ color: "var(--green-text)" }}>
-                            · {detail}
+                            · Catalog {detail}
                           </span>
                         </>
+                      )}
+                      {history.length > 0 ? (
+                        <ul
+                          style={{
+                            margin: "6px 0 0",
+                            padding: "0 0 0 14px",
+                            listStyle: "disc",
+                          }}
+                        >
+                          {history.map((q) => {
+                            const unit = unitPrice(q);
+                            return (
+                              <li
+                                key={`${q.request_id}-${q.revision}-${q.created_at}`}
+                                className="small"
+                                style={{ marginBottom: 2, color: "var(--muted)" }}
+                              >
+                                <span style={{ color: "var(--text)", fontWeight: 600 }}>
+                                  {formatMoney(q.currency, q.price)}
+                                </span>
+                                {q.quantity != null && (
+                                  <> · qty {q.quantity.toLocaleString()}</>
+                                )}
+                                {unit != null && (
+                                  <> · {formatMoney(q.currency, unit)}/u</>
+                                )}
+                                {q.lead_time_days != null && <> · {q.lead_time_days}d</>}
+                                {" · "}
+                                <span style={{ textTransform: "capitalize" }}>{q.status}</span>
+                                {" · "}
+                                {formatQuoteDate(q.created_at)}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        !quotesPending && (
+                          <div className="small muted" style={{ marginTop: 4 }}>
+                            No previous quotes from this partner
+                          </div>
+                        )
                       )}
                     </span>
                   </label>
@@ -270,25 +417,82 @@ export function NewRequestForm({
               )}
               <div
                 className="checks"
-                style={{ gridTemplateColumns: "1fr", gap: 6, opacity: selected ? 0.45 : 1 }}
+                style={{ gridTemplateColumns: "1fr", gap: 6 }}
               >
-                {others.map((p) => (
-                  <label key={p.id} className="check" style={{ padding: "8px 10px" }}>
-                    <input
-                      type="checkbox"
-                      name="partners"
-                      value={p.id}
-                      checked={checkedIds.has(p.id)}
-                      onChange={() => toggle(p.id)}
-                    />
-                    <span>
-                      <strong>{p.company}</strong>{" "}
-                      <span className="small muted">
-                        · {p.products.length ? p.products.map((pr) => pr.name).join(", ") : p.categories}
-                      </span>
-                    </span>
-                  </label>
-                ))}
+                {[...others]
+                  .sort((a, b) => {
+                    const ha = quotesByPartner.get(a.id)?.length ?? 0;
+                    const hb = quotesByPartner.get(b.id)?.length ?? 0;
+                    return hb - ha;
+                  })
+                  .map((p) => {
+                    const history = quotesByPartner.get(p.id) ?? [];
+                    const hasHistory = history.length > 0;
+                    return (
+                      <label
+                        key={p.id}
+                        className="check"
+                        style={{
+                          padding: "8px 10px",
+                          opacity: selected && !hasHistory ? 0.45 : 1,
+                          alignItems: "flex-start",
+                          ...(hasHistory
+                            ? { borderColor: "#fcd34d", background: "#fffbeb" }
+                            : null),
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="partners"
+                          value={p.id}
+                          checked={checkedIds.has(p.id)}
+                          onChange={() => toggle(p.id)}
+                          style={{ marginTop: 3 }}
+                        />
+                        <span style={{ display: "block", minWidth: 0 }}>
+                          <strong>{p.company}</strong>{" "}
+                          <span className="small muted">
+                            · {p.products.length ? p.products.map((pr) => pr.name).join(", ") : p.categories}
+                          </span>
+                          {hasHistory && (
+                            <ul
+                              style={{
+                                margin: "6px 0 0",
+                                padding: "0 0 0 14px",
+                                listStyle: "disc",
+                              }}
+                            >
+                              {history.map((q) => {
+                                const unit = unitPrice(q);
+                                return (
+                                  <li
+                                    key={`${q.request_id}-${q.revision}-${q.created_at}`}
+                                    className="small"
+                                    style={{ marginBottom: 2, color: "var(--muted)" }}
+                                  >
+                                    <span style={{ color: "var(--text)", fontWeight: 600 }}>
+                                      {formatMoney(q.currency, q.price)}
+                                    </span>
+                                    {q.quantity != null && (
+                                      <> · qty {q.quantity.toLocaleString()}</>
+                                    )}
+                                    {unit != null && (
+                                      <> · {formatMoney(q.currency, unit)}/u</>
+                                    )}
+                                    {q.lead_time_days != null && <> · {q.lead_time_days}d</>}
+                                    {" · "}
+                                    <span style={{ textTransform: "capitalize" }}>{q.status}</span>
+                                    {" · "}
+                                    {formatQuoteDate(q.created_at)}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
               </div>
             </>
           )}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getActor } from "@/lib/session";
 import { activePartners } from "@/lib/data";
-import { createRequest } from "@/app/actions";
+import { createRequest, getRecentQuotesForProduct } from "@/app/actions";
 import { Sidebar } from "@/components/Sidebar";
 import { NewRequestForm } from "@/components/NewRequestForm";
 
@@ -63,6 +63,7 @@ export default async function NewRequest({
           partners={partnerOptions}
           products={allProducts}
           createRequest={createRequest}
+          fetchRecentQuotes={getRecentQuotesForProduct}
         />
       </main>
     </div>

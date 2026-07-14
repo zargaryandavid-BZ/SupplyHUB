@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getActor } from "@/lib/session";
 import { allPartners, partnerStats, partnerActivity } from "@/lib/data";
 import { Sidebar } from "@/components/Sidebar";
-import { deletePartner, togglePartnerActive } from "@/app/actions";
+import { deletePartner, togglePartnerActive, saveFeedback } from "@/app/actions";
 import { publicLogoUrl } from "@/lib/storage";
 import { PartnerDirectoryTable } from "@/components/PartnerDirectoryTable";
 
@@ -54,6 +54,7 @@ export default async function PartnerDirectory({
           rows={rows}
           deletePartner={deletePartner}
           togglePartnerActive={togglePartnerActive}
+          saveFeedback={saveFeedback}
         />
       </main>
     </div>

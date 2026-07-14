@@ -78,6 +78,20 @@ export type Quote = {
   created_at: string;
 };
 
+export type PartnerFeedback = {
+  id: number;
+  dispatch_id: number;
+  partner_id: number;
+  request_id: number;
+  quality_rating: number | null;       // 1-5
+  quantity_rating: number | null;      // 1-5
+  satisfaction_rating: number | null;  // 1-5
+  timing_rating: number | null;        // 1-5
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Message = {
   id: number;
   request_id: number;

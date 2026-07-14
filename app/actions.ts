@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { now } from "@/lib/util";
 import { notify } from "@/lib/notify";
-import { partnerById } from "@/lib/data";
+import { partnerById, recentQuotesForProduct, type PreviousProductQuote } from "@/lib/data";
 import { getActor } from "@/lib/session";
 import type { PartnerProduct } from "@/lib/types";
 import {
@@ -52,6 +52,15 @@ async function notifyPartner(pid: number, subject: string, body: string) {
       body,
     });
   }
+}
+
+/** Last quotes per partner for a product (used on new-request form). */
+export async function getRecentQuotesForProduct(
+  productName: string
+): Promise<PreviousProductQuote[]> {
+  const actor = await getActor();
+  if (actor.role !== "manager") return [];
+  return recentQuotesForProduct(productName, 5);
 }
 
 // ---------- Manager: create + dispatch a request ----------
@@ -695,6 +704,45 @@ export async function saveSettings(formData: FormData) {
 
   revalidatePath("/manager/settings");
   redirect("/manager/settings?saved=1");
+}
+
+// ---------- Manager: save order feedback ----------
+export async function saveFeedback(formData: FormData) {
+  const actor = await getActor();
+  if (actor.role !== "manager") redirect("/");
+
+  const dispatchId = Number(formData.get("dispatch_id"));
+  const partnerId = Number(formData.get("partner_id"));
+  const requestId = Number(formData.get("request_id"));
+
+  const rating = (key: string) => {
+    const v = Number(formData.get(key));
+    return v >= 1 && v <= 5 ? v : null;
+  };
+
+  const payload = {
+    dispatch_id: dispatchId,
+    partner_id: partnerId,
+    request_id: requestId,
+    quality_rating: rating("quality_rating"),
+    quantity_rating: rating("quantity_rating"),
+    satisfaction_rating: rating("satisfaction_rating"),
+    timing_rating: rating("timing_rating"),
+    notes: (formData.get("notes") as string | null)?.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const sb = supabaseAdmin();
+  const { error } = await sb
+    .from("partner_feedback")
+    .upsert(payload, { onConflict: "dispatch_id" });
+
+  if (error) {
+    console.error("saveFeedback error:", error.message);
+    redirect("/manager/partners?error=feedback");
+  }
+
+  revalidatePath("/manager/partners");
 }
 
 // ---------- Manager: toggle partner active/inactive ----------
