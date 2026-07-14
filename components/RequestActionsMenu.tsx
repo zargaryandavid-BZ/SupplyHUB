@@ -98,7 +98,7 @@ export function RequestActionsMenu({
   function callAction(action: (fd: FormData) => Promise<unknown>, fields: Record<string, string>) {
     const fd = new FormData();
     Object.entries(fields).forEach(([k, v]) => fd.set(k, v));
-    startTransition(() => action(fd));
+    startTransition(async () => { await action(fd); });
     setOpen(false);
     setConfirmClose(false);
   }

@@ -102,7 +102,7 @@ export async function sendOtpSms(
     return true;
   }
 
-  const body = `Your ${companyName} login code is: ${code}. Valid for 10 minutes. Don't share it.`;
+  const body = `Your SupplyHUB by ${companyName} login code is: ${code}. Valid for 10 minutes. Don't share it.`;
   const params = new URLSearchParams({ To: phone, From: from, Body: body });
   const auth = Buffer.from(`${sid}:${token}`).toString("base64");
 

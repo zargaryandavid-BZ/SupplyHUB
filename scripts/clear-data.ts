@@ -7,17 +7,17 @@ async function run() {
 
   const sb = createClient(url, key);
 
-  const steps: [string, () => Promise<unknown>][] = [
-    ["partner_feedback", () => sb.from("partner_feedback").delete().neq("id", 0)],
-    ["messages",         () => sb.from("messages").delete().neq("id", 0)],
-    ["quotes",           () => sb.from("quotes").delete().neq("id", 0)],
-    ["dispatches",       () => sb.from("dispatches").delete().neq("id", 0)],
-    ["product_requests", () => sb.from("product_requests").delete().neq("id", 0)],
-    ["partners",         () => sb.from("partners").delete().neq("id", 0)],
-  ];
+  const tables = [
+    "partner_feedback",
+    "messages",
+    "quotes",
+    "dispatches",
+    "product_requests",
+    "partners",
+  ] as const;
 
-  for (const [table, fn] of steps) {
-    const { error, count } = await (fn() as ReturnType<typeof sb.from>);
+  for (const table of tables) {
+    const { error, count } = await sb.from(table).delete().neq("id", 0);
     if (error) {
       console.error(`✗ ${table}:`, error.message);
     } else {

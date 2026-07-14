@@ -30,6 +30,7 @@ export async function getSettings(): Promise<CompanySettings> {
     sms_new_request_template: null,
     sms_won_template: null,
     sms_update_template: null,
+    sms_invite_template: null,
     updated_at: null,
   };
 
