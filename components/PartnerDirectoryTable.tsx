@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import type { Partner } from "@/lib/types";
@@ -211,47 +212,65 @@ function ActivityPanel({
   return (
     <div style={{ padding: "14px 6px" }}>
       {/* Summary stat tiles */}
-      <div className="grid cols-5" style={{ marginBottom: 14 }}>
-        <div>
-          <div className="small muted">Offers sent</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{summary.sent}</div>
-        </div>
-        <div>
-          <div className="small muted">Responded</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            {summary.responded}
-            <span className="small muted" style={{ fontWeight: 400 }}> ({summary.awaiting} awaiting)</span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 16 }}>
+        {(
+          [
+            { label: "Offers sent", value: <strong style={{ fontSize: 20 }}>{summary.sent}</strong> },
+            {
+              label: "Responded",
+              value: (
+                <span style={{ fontSize: 20, fontWeight: 700 }}>
+                  {summary.responded}
+                  <span className="small muted" style={{ fontWeight: 400, fontSize: 12 }}> ({summary.awaiting} awaiting)</span>
+                </span>
+              ),
+            },
+            {
+              label: "Won / lost",
+              value: (
+                <span style={{ fontSize: 20, fontWeight: 700 }}>
+                  {summary.won} / {summary.lost}
+                  <span className="small muted" style={{ fontWeight: 400, fontSize: 12 }}> ({summary.winRate}%)</span>
+                </span>
+              ),
+            },
+            {
+              label: "Committed revenue",
+              value: (
+                <strong style={{ fontSize: 18 }}>
+                  {summary.committed.length === 0
+                    ? "—"
+                    : summary.committed.map((c) => `${c.currency} ${c.total.toLocaleString()}`).join(" · ")}
+                </strong>
+              ),
+            },
+            {
+              label: "Avg rating",
+              value: summary.avgRating != null ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 20, color: "#f59e0b", lineHeight: 1 }}>★</span>
+                  <strong style={{ fontSize: 20 }}>{summary.avgRating.toFixed(1)}</strong>
+                  <span className="small muted" style={{ fontSize: 12 }}>({summary.feedbackCount})</span>
+                </span>
+              ) : (
+                <span className="muted" style={{ fontSize: 16 }}>—</span>
+              ),
+            },
+          ] as { label: string; value: React.ReactNode }[]
+        ).map(({ label, value }) => (
+          <div
+            key={label}
+            style={{
+              background: "#fff",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "10px 14px",
+            }}
+          >
+            <div className="small muted" style={{ marginBottom: 4 }}>{label}</div>
+            <div>{value}</div>
           </div>
-        </div>
-        <div>
-          <div className="small muted">Won / lost</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            {summary.won} / {summary.lost}
-            <span className="small muted" style={{ fontWeight: 400 }}> ({summary.winRate}%)</span>
-          </div>
-        </div>
-        <div>
-          <div className="small muted">Committed revenue</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            {summary.committed.length === 0
-              ? "—"
-              : summary.committed.map((c) => `${c.currency} ${c.total.toLocaleString()}`).join(" · ")}
-          </div>
-        </div>
-        <div>
-          <div className="small muted">Avg rating</div>
-          <div style={{ fontSize: 20, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-            {summary.avgRating != null ? (
-              <>
-                <span style={{ color: "#f59e0b" }}>★</span>
-                <span>{summary.avgRating.toFixed(1)}</span>
-                <span className="small muted" style={{ fontWeight: 400 }}>({summary.feedbackCount})</span>
-              </>
-            ) : (
-              <span className="muted" style={{ fontSize: 16 }}>—</span>
-            )}
-          </div>
-        </div>
+        ))}
       </div>
 
       {rows.length === 0 ? (

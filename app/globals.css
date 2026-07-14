@@ -96,6 +96,7 @@ a:hover { text-decoration: underline; }
 .grid.cols-2 { grid-template-columns: 1fr 1fr; }
 .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
 .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
 
 /* ---------- Field sub-sections ---------- */
 .field-section { margin-bottom: 18px; }
