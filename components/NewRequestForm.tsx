@@ -179,7 +179,11 @@ export function NewRequestForm({
             </div>
             <div className="field" style={{ marginBottom: 8 }}>
               <label>Needed by</label>
-              <input name="needed_by" type="date" />
+              <input
+                name="needed_by"
+                type="date"
+                min={new Date().toISOString().split("T")[0]}
+              />
             </div>
           </div>
 
