@@ -110,11 +110,25 @@ a:hover { text-decoration: underline; }
 .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 16px; align-items: stretch; }
 .column { background: #f3f4f6; border-radius: var(--radius); padding: 12px; height: 100%; box-sizing: border-box; }
 .column h4 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; }
+.column-awarded {
+  background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1.5px solid #fcd34d;
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.12);
+}
+.column-awarded h4 { color: #92400e; }
 .req-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px; margin-bottom: 10px; display: block; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); transition: box-shadow .15s, border-color .15s; }
 .req-card:hover { border-color: var(--indigo); box-shadow: 0 2px 8px rgba(37, 99, 235, 0.10); text-decoration: none; }
 .req-card .title { font-weight: 600; color: var(--text); }
 .req-card .meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .req-card .stats { font-size: 12px; margin-top: 8px; color: var(--indigo); font-weight: 500; }
+.req-card-awarded {
+  background: #fff;
+  border-color: #fcd34d;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.15);
+}
+.req-card-awarded:hover { border-color: #f59e0b; box-shadow: 0 3px 12px rgba(245, 158, 11, 0.25); }
+.req-card-awarded .title { color: #78350f; }
+.req-card-awarded .stats { color: #b45309; }
 
 /* ---------- Badges ---------- */
 .badge {

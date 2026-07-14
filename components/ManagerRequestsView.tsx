@@ -235,10 +235,18 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
         <div className="board">
           {columns.map((status) => {
             const items = filtered.filter((r) => r.status === status);
+            const isAwarded = status === "awarded";
             return (
-              <div className="column" key={status}>
+              <div
+                className={isAwarded ? "column column-awarded" : "column"}
+                key={status}
+              >
                 <h4>
-                  {STATUS_LABELS[status]} ({items.length})
+                  {isAwarded && (
+                    <span style={{ marginRight: 5 }}>🏆</span>
+                  )}
+                  {STATUS_LABELS[status]}
+                  <span style={{ marginLeft: 5, opacity: 0.75 }}>({items.length})</span>
                 </h4>
                 {items.length === 0 && (
                   <p className="small muted" style={{ padding: "0 4px" }}>
@@ -246,7 +254,24 @@ export function ManagerRequestsView({ requests }: { requests: RequestRow[] }) {
                   </p>
                 )}
                 {items.map((r) => (
-                  <Link key={r.id} href={`/manager/requests/${r.id}`} className="req-card">
+                  <Link
+                    key={r.id}
+                    href={`/manager/requests/${r.id}`}
+                    className={isAwarded ? "req-card req-card-awarded" : "req-card"}
+                  >
+                    {isAwarded && (
+                      <div style={{
+                        fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                        letterSpacing: "0.6px", color: "#92400e", marginBottom: 6,
+                        display: "flex", alignItems: "center", gap: 4,
+                      }}>
+                        <span style={{
+                          width: 6, height: 6, borderRadius: "50%",
+                          background: "#f59e0b", display: "inline-block", flexShrink: 0,
+                        }} />
+                        Won
+                      </div>
+                    )}
                     <div className="title">{r.title}</div>
                     <div className="meta">
                       {r.client_name} · {r.order_number}
