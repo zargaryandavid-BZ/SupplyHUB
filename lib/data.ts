@@ -65,6 +65,7 @@ export type PartnerActivityRow = {
   valid_until: string | null;
   revision: number | null;
   // feedback
+  seen_at: string | null;
   feedback_id: number | null;
   quality_rating: number | null;
   quantity_rating: number | null;
@@ -101,7 +102,7 @@ export async function partnerActivity(partnerId: number): Promise<{
 
   const { data: dispatchRows } = await sb
     .from("dispatches")
-    .select("*")
+    .select("id, request_id, partner_id, sent_at, seen_at")
     .eq("partner_id", partnerId)
     .order("sent_at", { ascending: false });
   const dispatches = (dispatchRows ?? []) as Dispatch[];
@@ -158,6 +159,7 @@ export async function partnerActivity(partnerId: number): Promise<{
       order_number: order?.order_number ?? "—",
       quantity: req?.quantity ?? null,
       sent_at: d.sent_at,
+      seen_at: d.seen_at ?? null,
       quote_id: q?.id ?? null,
       quote_status: q?.status ?? null,
       price: q?.price ?? null,
@@ -353,13 +355,14 @@ export async function requestDetail(id: number) {
 
   const { data: dispatchRows } = await sb
     .from("dispatches")
-    .select("*")
+    .select("id, request_id, partner_id, sent_at, seen_at")
     .eq("request_id", id);
   const dispatchList = (dispatchRows ?? []) as Array<{
     id: number;
     request_id: number;
     partner_id: number;
     sent_at: string;
+    seen_at: string | null;
   }>;
 
   const partnerIds = [...new Set(dispatchList.map((d) => d.partner_id))];
@@ -387,6 +390,7 @@ export async function requestDetail(id: number) {
         partner_id: disp.partner_id,
         company: p?.company ?? "—",
         rating: p?.rating ?? 0,
+        seen_at: disp.seen_at ?? null,
         quote_id: q?.id ?? null,
         price: q?.price ?? null,
         currency: q?.currency ?? null,

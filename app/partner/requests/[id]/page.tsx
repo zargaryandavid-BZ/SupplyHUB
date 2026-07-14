@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getActor } from "@/lib/session";
 import { partnerRequestDetail } from "@/lib/data";
-import { submitQuote, postMessage } from "@/app/actions";
+import { submitQuote, postMessage, markRequestSeen } from "@/app/actions";
 import { QuoteForm } from "@/components/QuoteForm";
 import { Sidebar } from "@/components/Sidebar";
 import { signedAttachmentUrl } from "@/lib/storage";
@@ -25,6 +25,13 @@ export default async function PartnerRequestDetail({
   ]);
   if (!data) notFound();
   const { row, quote = null, messages } = data;
+
+  // Silently stamp seen_at on first open (fire-and-forget, don't block render)
+  const fd = new FormData();
+  fd.set("partner_id", String(actor.partnerId));
+  fd.set("request_id", String(row.id));
+  markRequestSeen(fd).catch(() => {});
+
 
   // Resolve attachment keys → signed URLs (private bucket, 1 h expiry)
   let attachmentUrls: { url: string; name: string }[] = [];

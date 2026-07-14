@@ -114,6 +114,7 @@ export type Dispatch = {
   request_id: number;
   partner_id: number;
   sent_at: string;
+  seen_at: string | null;
 };
 
 export type CompanySettings = {

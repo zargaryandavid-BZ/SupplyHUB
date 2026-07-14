@@ -282,6 +282,7 @@ function ActivityPanel({
               <th>Request</th>
               <th>Client / order</th>
               <th>Sent</th>
+              <th>Seen</th>
               <th>Qty</th>
               <th>Status</th>
               <th>Total price</th>
@@ -315,6 +316,16 @@ function ActivityPanel({
                     {r.sent_at
                       ? new Date(r.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                       : "—"}
+                  </td>
+                  <td className="small">
+                    {r.seen_at ? (
+                      <span title={new Date(r.seen_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} style={{ color: "#16a34a", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        {new Date(r.seen_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    ) : (
+                      <span className="muted">Not seen</span>
+                    )}
                   </td>
                   <td className="small">{r.quantity != null ? r.quantity.toLocaleString() : "—"}</td>
                   <td>

@@ -7,7 +7,8 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 import { now } from "@/lib/util";
 import { notify } from "@/lib/notify";
 import { partnerById, recentQuotesForProduct, type PreviousProductQuote } from "@/lib/data";
-import { getActor } from "@/lib/session";
+import { getActor, createPendingSession, createSession, destroySession, SESSION_COOKIE } from "@/lib/session";
+import { lookupActor, generateCode, hashCode, sendOtpSms } from "@/lib/otp";
 import type { PartnerProduct } from "@/lib/types";
 import {
   uploadLogo,
@@ -39,6 +40,75 @@ import {
 } from "@/lib/partners";
 
 const COOKIE = "shub_actor";
+
+// ---------- OTP Auth ----------
+
+export async function requestOtp(formData: FormData) {
+  const identifier = (formData.get("identifier") as string | null)?.trim() || "";
+  if (!identifier) redirect("/login?error=required");
+
+  const settings = await getSettings();
+  const companyName = settings.company_name?.trim() || "SupplyerHUB";
+
+  const actor = await lookupActor(identifier);
+  if (!actor) redirect("/login?error=not_found");
+
+  if (!actor.phone) redirect("/login?error=no_phone");
+
+  const code = generateCode();
+  const hash = hashCode(code);
+  await createPendingSession(
+    actor.type,
+    actor.type === "partner" ? actor.id : null,
+    hash
+  );
+
+  await sendOtpSms(actor.phone, code, companyName);
+
+  const masked = actor.phone.slice(-4);
+  redirect(`/login/verify?to=${encodeURIComponent("•••• " + masked)}`);
+}
+
+export async function verifyOtp(formData: FormData) {
+  const code = (formData.get("code") as string | null)?.trim().replace(/\s/g, "") || "";
+  if (!code || code.length !== 6) redirect("/login/verify?error=invalid");
+
+  const sessionId = cookies().get(SESSION_COOKIE)?.value;
+  if (!sessionId) redirect("/login?error=expired");
+
+  const sb = supabaseAdmin();
+  const { data: session } = await sb
+    .from("auth_sessions")
+    .select("*")
+    .eq("id", sessionId)
+    .eq("verified", false)
+    .maybeSingle();
+
+  if (!session) redirect("/login?error=expired");
+
+  const expired = new Date(session.otp_expires as string).getTime() < Date.now();
+  if (expired) {
+    await sb.from("auth_sessions").delete().eq("id", sessionId);
+    redirect("/login?error=expired");
+  }
+
+  const inputHash = hashCode(code);
+  if (inputHash !== session.otp_hash) redirect("/login/verify?error=wrong");
+
+  // Mark session as verified
+  await sb
+    .from("auth_sessions")
+    .update({ verified: true, otp_hash: null, otp_expires: null, last_active: new Date().toISOString() })
+    .eq("id", sessionId);
+
+  if (session.actor_type === "manager") redirect("/manager");
+  redirect("/partner");
+}
+
+export async function logout() {
+  await destroySession();
+  redirect("/login");
+}
 
 // ---------- Role switching ----------
 export async function setActor(formData: FormData) {
@@ -557,6 +627,22 @@ export async function awardQuote(formData: FormData) {
 
   revalidatePath(`/manager/requests/${requestId}`);
   redirect(`/manager/requests/${requestId}`);
+}
+
+// ---------- Partner: mark request as seen (first open) ----------
+export async function markRequestSeen(formData: FormData) {
+  const partnerId = Number(formData.get("partner_id"));
+  const requestId = Number(formData.get("request_id"));
+  if (!partnerId || !requestId) return;
+
+  const sb = supabaseAdmin();
+  // Only stamp if not yet seen
+  await sb
+    .from("dispatches")
+    .update({ seen_at: new Date().toISOString() })
+    .eq("partner_id", partnerId)
+    .eq("request_id", requestId)
+    .is("seen_at", null);
 }
 
 // ---------- Messages / questions ----------
