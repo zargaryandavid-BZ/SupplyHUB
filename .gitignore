@@ -11,3 +11,4 @@ tsconfig.tsbuildinfo
 # Partner logo uploads (keep the directory but not the files)
 public/uploads/*
 !public/uploads/.gitkeep
+.vercel
