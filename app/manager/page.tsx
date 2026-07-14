@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActor } from "@/lib/session";
 import { managerRequests } from "@/lib/data";
@@ -26,9 +25,6 @@ export default async function ManagerBoard({
             <h1>Requests</h1>
             <p>Every product request routed to your partners, by stage.</p>
           </div>
-          <Link href="/manager/requests/new" className="btn">
-            + New request
-          </Link>
         </div>
 
         {searchParams.reminded && (

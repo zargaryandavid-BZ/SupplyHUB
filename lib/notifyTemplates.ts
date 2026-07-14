@@ -17,6 +17,12 @@ export const DEFAULT_SMS_WON = [
   "Open: {{link}}",
 ].join("\n");
 
+export const DEFAULT_SMS_INVITE = [
+  "Hi {{partner_name}}, you've been invited to the {{company_name}} supplier portal.",
+  "Use this link to log in — no password needed:",
+  "{{link}}",
+].join("\n");
+
 export function appBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");

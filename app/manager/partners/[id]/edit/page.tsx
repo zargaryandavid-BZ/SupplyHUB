@@ -6,6 +6,7 @@ import { updatePartner, deletePartner, togglePartnerActive, generatePortalToken 
 import { Sidebar } from "@/components/Sidebar";
 import { PartnerForm } from "@/components/PartnerForm";
 import { publicLogoUrl, publicProductImageUrl } from "@/lib/storage";
+import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,11 @@ export default async function EditPartner({
   const actor = await getActor();
   if (actor.role !== "manager") redirect("/");
 
-  const [partner, stats, allPartnersData] = await Promise.all([
+  const [partner, stats, allPartnersData, settings] = await Promise.all([
     partnerById(Number(params.id)),
     partnerStats(Number(params.id)),
     allPartners(),
+    getSettings(),
   ]);
   if (!partner) redirect("/manager/partners");
 
@@ -94,6 +96,8 @@ export default async function EditPartner({
           knownProducts={knownProducts}
           justSaved={searchParams.saved === "1"}
           generatePortalToken={generatePortalToken}
+          smsInviteTemplate={settings.sms_invite_template ?? undefined}
+          companyName={settings.company_name ?? undefined}
         />
 
         {/* ── Danger zone ── */}

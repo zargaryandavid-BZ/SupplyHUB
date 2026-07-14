@@ -80,15 +80,7 @@ export default async function LoginPage({
                 autoComplete="tel email"
                 placeholder="+1 310 555 0100 or you@company.com"
                 required
-                style={{
-                  width: "100%", padding: "11px 14px",
-                  border: "1.5px solid #d1d5db", borderRadius: 10,
-                  fontSize: 15, fontFamily: "inherit", color: "#0f172a",
-                  outline: "none", boxSizing: "border-box",
-                  transition: "border-color .15s",
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "#6366f1")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "#d1d5db")}
+                className="otp-id-input"
               />
             </div>
 

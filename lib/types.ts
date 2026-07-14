@@ -141,6 +141,8 @@ export type CompanySettings = {
   sms_won_template: string | null;
   /** SMS when a request is updated. Placeholders: {{company_name}}, {{title}}, {{quantity}}, {{needed_by}}, {{link}}, {{partner_name}} */
   sms_update_template: string | null;
+  /** SMS portal invite sent to partner. Placeholders: {{company_name}}, {{partner_name}}, {{link}} */
+  sms_invite_template: string | null;
   updated_at: string | null;
 };
 

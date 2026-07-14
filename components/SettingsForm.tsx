@@ -6,6 +6,7 @@ import {
   DEFAULT_SMS_NEW_REQUEST,
   DEFAULT_SMS_WON,
   DEFAULT_SMS_UPDATE,
+  DEFAULT_SMS_INVITE,
 } from "@/lib/notifyTemplates";
 
 type Props = {
@@ -312,14 +313,24 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
       <div className="card" style={{ ...card, marginTop: 2, marginBottom: 72 }}>
         <p className="card-section-title" style={{ marginBottom: 4 }}>SMS / notification templates</p>
         <p className="small muted" style={{ margin: "0 0 14px" }}>
-          Sent to partners when a request goes out or a project is won. Use placeholders like{" "}
-          <code>{"{{company_name}}"}</code>, <code>{"{{title}}"}</code>, <code>{"{{link}}"}</code>,{" "}
-          <code>{"{{quantity}}"}</code>, <code>{"{{price}}"}</code>, <code>{"{{currency}}"}</code>,{" "}
-          <code>{"{{lead_time_days}}"}</code>, <code>{"{{needed_by}}"}</code>,{" "}
-          <code>{"{{partner_name}}"}</code>. Company name comes from Settings above.
+          Sent to partners for invites, new requests, and project updates. Use placeholders like{" "}
+          <code>{"{{company_name}}"}</code>, <code>{"{{partner_name}}"}</code>, <code>{"{{title}}"}</code>,{" "}
+          <code>{"{{link}}"}</code>, <code>{"{{quantity}}"}</code>, <code>{"{{price}}"}</code>,{" "}
+          <code>{"{{currency}}"}</code>, <code>{"{{lead_time_days}}"}</code>, <code>{"{{needed_by}}"}</code>.{" "}
           Leave blank to use the default text.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Portal invite (SMS)</label>
+            <textarea
+              name="sms_invite_template"
+              rows={6}
+              placeholder={DEFAULT_SMS_INVITE}
+              defaultValue={s.sms_invite_template ?? ""}
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.45 }}
+            />
+            <span className="small muted">Placeholders: <code>{"{{partner_name}}"}</code> <code>{"{{company_name}}"}</code> <code>{"{{link}}"}</code></span>
+          </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label>New request (SMS)</label>
             <textarea

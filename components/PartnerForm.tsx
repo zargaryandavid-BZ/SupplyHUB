@@ -22,6 +22,10 @@ type Props = {
   justSaved?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generatePortalToken?: (formData: FormData) => Promise<any>;
+  /** Custom SMS invite template from company settings */
+  smsInviteTemplate?: string;
+  /** Company name for template placeholders */
+  companyName?: string;
 };
 
 const card = { padding: "13px 15px", marginBottom: 14 } as const;
@@ -111,6 +115,8 @@ export function PartnerForm({
   knownProducts = [],
   justSaved = false,
   generatePortalToken,
+  smsInviteTemplate,
+  companyName,
 }: Props) {
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -416,7 +422,7 @@ export function PartnerForm({
                           opacity: isGenerating ? 0.5 : 1,
                         }}
                       >
-                        {isGenerating ? "Generating…" : partner.portal_token ? "Regenerate" : "Generate link"}
+                        {isGenerating ? "Generating…" : partner.portal_token ? "Revoke & reissue" : "Generate link"}
                       </button>
                     )}
                   </div>
@@ -426,15 +432,25 @@ export function PartnerForm({
                       ? `${window.location.origin}/api/portal?token=${partner.portal_token}`
                       : `/api/portal?token=${partner.portal_token}`;
                     const recipientEmail = partner.portal_email || partner.email || "";
-                    const mailtoBody = `Hi ${partner.portal_contact_name || partner.contact || "there"},\n\nHere is your unique link to access the SupplyerHUB supplier portal:\n\n${portalUrl}\n\nThis link logs you in directly — no password needed.\n\nBest regards`;
-                    const mailto = `mailto:${recipientEmail}?subject=${encodeURIComponent("Your SupplyerHUB portal access link")}&body=${encodeURIComponent(mailtoBody)}`;
+                    const recipientPhone = partner.phone || "";
+                    const greeting = partner.portal_contact_name || partner.contact || "there";
+                    const msgBody = `Hi ${greeting},\n\nHere is your unique link to access the SupplyerHUB supplier portal:\n\n${portalUrl}\n\nThis link logs you in directly — no password needed.\n\nBest regards`;
+                    const mailto = `mailto:${recipientEmail}?subject=${encodeURIComponent("Your SupplyerHUB portal access link")}&body=${encodeURIComponent(msgBody)}`;
+                    const defaultSmsBody = `Hi ${greeting}, here is your ${companyName || "SupplyerHUB"} portal link: ${portalUrl}`;
+                    const smsBody = smsInviteTemplate
+                      ? smsInviteTemplate
+                          .replace(/\{\{partner_name\}\}/g, greeting)
+                          .replace(/\{\{company_name\}\}/g, companyName || "SupplyerHUB")
+                          .replace(/\{\{link\}\}/g, portalUrl)
+                      : defaultSmsBody;
+                    const smsHref = `sms:${recipientPhone}?body=${encodeURIComponent(smsBody)}`;
                     return (
                       <div>
                         <div style={{
                           display: "flex", alignItems: "center", gap: 6,
                           background: "#f8fafc", border: "1px solid var(--border)",
                           borderRadius: "var(--radius-sm)", padding: "8px 10px",
-                          marginBottom: 8,
+                          marginBottom: 10,
                         }}>
                           <span style={{ flex: 1, fontSize: 12, color: "#374151", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             /api/portal?token={partner.portal_token}
@@ -456,23 +472,41 @@ export function PartnerForm({
                             {linkCopied ? "Copied!" : "Copy"}
                           </button>
                         </div>
-                        <a
-                          href={mailto}
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 5,
-                            fontSize: 13, fontWeight: 500, color: "#fff",
-                            background: "var(--indigo)", borderRadius: 6,
-                            padding: "7px 14px", textDecoration: "none",
-                          }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                            <polyline points="22,6 12,13 2,6"/>
-                          </svg>
-                          Send invite to {recipientEmail || "partner"}
-                        </a>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <a
+                            href={mailto}
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: 5,
+                              fontSize: 13, fontWeight: 500, color: "#fff",
+                              background: "var(--indigo)", borderRadius: 6,
+                              padding: "7px 14px", textDecoration: "none",
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                              <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                            {recipientEmail ? `Email to ${recipientEmail}` : "Send email invite"}
+                          </a>
+                          {recipientPhone && (
+                            <a
+                              href={smsHref}
+                              style={{
+                                display: "inline-flex", alignItems: "center", gap: 5,
+                                fontSize: 13, fontWeight: 500, color: "#fff",
+                                background: "#16a34a", borderRadius: 6,
+                                padding: "7px 14px", textDecoration: "none",
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                              </svg>
+                              SMS to {recipientPhone}
+                            </a>
+                          )}
+                        </div>
                         <p className="small muted" style={{ marginTop: 6 }}>
-                          Opens your email client with a pre-filled invite. The link logs the partner in directly — no password needed.
+                          Opens your email or SMS app with a pre-filled invite. The link logs the partner in directly — no password needed.
                         </p>
                       </div>
                     );

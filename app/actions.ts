@@ -47,6 +47,17 @@ export async function requestOtp(formData: FormData) {
   const identifier = (formData.get("identifier") as string | null)?.trim() || "";
   if (!identifier) redirect("/login?error=required");
 
+  // Trusted manager emails — bypass OTP entirely, log in immediately
+  const trustedEmails = (process.env.TRUSTED_MANAGER_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (identifier.includes("@") && trustedEmails.includes(identifier.toLowerCase())) {
+    await createSession("manager");
+    redirect("/manager");
+  }
+
   const settings = await getSettings();
   const companyName = settings.company_name?.trim() || "SupplyerHUB";
 
@@ -916,6 +927,7 @@ export async function saveSettings(formData: FormData) {
     sms_new_request_template: str("sms_new_request_template"),
     sms_won_template: str("sms_won_template"),
     sms_update_template: str("sms_update_template"),
+    sms_invite_template: str("sms_invite_template"),
   };
 
   const logoFile = formData.get("company_logo") as File | null;

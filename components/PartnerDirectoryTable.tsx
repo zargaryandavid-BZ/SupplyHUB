@@ -460,8 +460,9 @@ export function PartnerDirectoryTable({
       {previewPartner && (
         <ProductModal partner={previewPartner} onClose={() => setPreviewPartner(null)} />
       )}
-      {/* Product filter bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      {/* Toolbar: filter + add partner */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ position: "relative", flex: "0 1 320px" }}>
           <svg
             width="15" height="15" viewBox="0 0 24 24" fill="none"
@@ -505,6 +506,11 @@ export function PartnerDirectoryTable({
             {filteredRows.length} of {rows.length} partner{rows.length !== 1 ? "s" : ""}
           </span>
         )}
+        </div>{/* end left group */}
+
+        <Link href="/manager/partners/new" className="btn" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>
+          + Add partner
+        </Link>
       </div>
 
     <table className="data">

@@ -91,7 +91,7 @@ export function ManagerRequestsView({ requests, actions }: { requests: RequestRo
 
   return (
     <div>
-      {/* Top-left: view switch + search */}
+      {/* Toolbar: view switch + search + new request */}
       <div
         style={{
           display: "flex",
@@ -99,8 +99,10 @@ export function ManagerRequestsView({ requests, actions }: { requests: RequestRo
           gap: 12,
           marginBottom: 16,
           flexWrap: "wrap",
+          justifyContent: "space-between",
         }}
       >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div
           role="group"
           aria-label="View mode"
@@ -233,6 +235,11 @@ export function ManagerRequestsView({ requests, actions }: { requests: RequestRo
             {filtered.length} of {requests.length} request{requests.length === 1 ? "" : "s"}
           </span>
         )}
+        </div>{/* end left group */}
+
+        <Link href="/manager/requests/new" className="btn" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>
+          + New request
+        </Link>
       </div>
 
       {filtered.length === 0 ? (

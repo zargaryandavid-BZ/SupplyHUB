@@ -13,12 +13,21 @@ export function OtpInput({ action }: Props) {
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleChange(i: number, value: string) {
-    const v = value.replace(/\D/g, "").slice(-1);
+    const cleaned = value.replace(/\D/g, "");
+    // Autofill or paste delivers the full code into one input
+    if (cleaned.length > 1) {
+      const next = [...digits];
+      cleaned.split("").forEach((ch, idx) => { if (idx < 6) next[idx] = ch; });
+      setDigits(next);
+      inputs.current[Math.min(cleaned.length, 5)]?.focus();
+      if (next.every(Boolean)) submit(next.join(""));
+      return;
+    }
+    const v = cleaned.slice(-1);
     const next = [...digits];
     next[i] = v;
     setDigits(next);
     if (v && i < 5) inputs.current[i + 1]?.focus();
-    // Auto-submit when all 6 filled
     if (v && next.every(Boolean)) submit(next.join(""));
   }
 
@@ -67,9 +76,10 @@ export function OtpInput({ action }: Props) {
             ref={(el) => { inputs.current[i] = el; }}
             type="text"
             inputMode="numeric"
-            maxLength={1}
+            maxLength={6}
             value={d}
             disabled={isPending}
+            autoComplete={i === 0 ? "one-time-code" : "off"}
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={handlePaste}

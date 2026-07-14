@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActor } from "@/lib/session";
 import { allPartners, partnerStats, partnerActivity } from "@/lib/data";
@@ -39,9 +38,6 @@ export default async function PartnerDirectory({
             <h1>Partner directory</h1>
             <p>Your supplier network — click a partner to see their activity, or edit their profile.</p>
           </div>
-          <Link href="/manager/partners/new" className="btn">
-            + Add partner
-          </Link>
         </div>
 
         {searchParams.error === "has_history" && (

@@ -377,3 +377,13 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 /* Logo upload box hover */
 .logo-upload-box:hover { border-color: var(--indigo) !important; }
 .logo-upload-box:hover .logo-upload-overlay { opacity: 1 !important; }
+
+/* Login page identifier input */
+.otp-id-input {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid #d1d5db; border-radius: 10px;
+  font-size: 15px; font-family: inherit; color: #0f172a;
+  outline: none; box-sizing: border-box;
+  transition: border-color .15s;
+}
+.otp-id-input:focus { border-color: #6366f1; }
