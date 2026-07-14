@@ -1,16 +1,22 @@
 import { getActor } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 import { logout } from "@/app/actions";
 
 export async function TopBar() {
   const actor = await getActor();
   if (actor.role === "guest") return null;
 
-  const label =
-    actor.role === "manager"
-      ? "Distribution Manager"
-      : (actor.partner.contact ?? actor.partner.company ?? "Partner").split(" ")[0] +
-        " · " +
-        actor.partner.company;
+  let label: string;
+  if (actor.role === "manager") {
+    const settings = await getSettings();
+    const name = settings.manager_name?.trim() || settings.contact_name?.trim() || "";
+    label = name ? `${name} · Distribution Manager` : "Distribution Manager";
+  } else {
+    label =
+      (actor.partner.contact ?? actor.partner.company ?? "Partner").split(" ")[0] +
+      " · " +
+      actor.partner.company;
+  }
 
   return (
     <div style={{
