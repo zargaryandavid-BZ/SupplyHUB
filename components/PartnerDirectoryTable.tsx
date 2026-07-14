@@ -1,0 +1,557 @@
+"use client";
+
+import Link from "next/link";
+import { Fragment, useMemo, useState } from "react";
+import type { Partner } from "@/lib/types";
+import type { PartnerActivityRow } from "@/lib/data";
+import { Badge } from "@/components/Badge";
+
+type Stats = { sent: number; won: number; winRate: number };
+
+type Activity = {
+  rows: PartnerActivityRow[];
+  summary: {
+    sent: number;
+    responded: number;
+    won: number;
+    lost: number;
+    awaiting: number;
+    winRate: number;
+    committed: Array<{ currency: string; total: number }>;
+  };
+};
+
+export type PartnerDirectoryRow = {
+  partner: Partner;
+  stats: Stats;
+  activity: Activity;
+  logoUrl: string | null;
+};
+
+function Initials({ name }: { name: string }) {
+  const parts = name.trim().split(/\s+/);
+  const letters =
+    parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name.slice(0, 2);
+  return <span>{letters.toUpperCase()}</span>;
+}
+
+function ChannelPills({ channels }: { channels: string | null }) {
+  if (!channels) return <span className="muted">—</span>;
+  const list = channels.split(",").map((c) => c.trim()).filter(Boolean);
+  return (
+    <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+      {list.map((c) => (
+        <span key={c} className="badge neutral">
+          {c}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+const IconChevron = ({ open }: { open: boolean }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", flex: "none" }}
+  >
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const IconEdit = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const IconPause = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="10" y1="15" x2="10" y2="9" />
+    <line x1="14" y1="15" x2="14" y2="9" />
+  </svg>
+);
+
+const IconPlay = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="10 8 16 12 10 16 10 8" />
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
+
+const IconEye = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+function ProductModal({ partner, onClose }: { partner: { company: string; products?: { name: string; notes?: string; moq: number | null; delivery_days: number | null; price: number | null; currency: string; images?: string[] }[] }; onClose: () => void }) {
+  const products = partner.products ?? [];
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(0,0,0,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="card"
+        style={{
+          width: "min(640px, 95vw)", maxHeight: "80vh",
+          display: "flex", flexDirection: "column",
+          padding: 0, overflow: "hidden",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{partner.company}</div>
+            <div className="small muted">{products.length} product{products.length !== 1 ? "s" : ""}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, color: "var(--muted)", padding: "2px 6px" }}
+            title="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Product list */}
+        <div style={{ overflowY: "auto", padding: "12px 20px 20px" }}>
+          {products.length === 0 ? (
+            <p className="small muted" style={{ margin: "16px 0" }}>No products listed for this partner.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {products.map((pr, i) => (
+                <div
+                  key={i}
+                  style={{
+                    border: "1px solid var(--border)", borderRadius: 8,
+                    padding: "10px 14px", background: "#fafafa",
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: pr.notes ? 4 : 0 }}>{pr.name}</div>
+                  {pr.notes && <div className="small muted" style={{ marginBottom: 6 }}>{pr.notes}</div>}
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                    {pr.moq != null && (
+                      <span className="small"><span className="muted">MOQ:</span> {pr.moq}</span>
+                    )}
+                    {pr.delivery_days != null && (
+                      <span className="small"><span className="muted">Lead time:</span> {pr.delivery_days} days</span>
+                    )}
+                    {pr.price != null && (
+                      <span className="small"><span className="muted">Price:</span> {pr.currency} {pr.price.toLocaleString()}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityPanel({ activity }: { activity: Activity }) {
+  const { summary, rows } = activity;
+  return (
+    <div style={{ padding: "14px 6px" }}>
+      <div className="grid cols-4" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="small muted">Offers sent</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{summary.sent}</div>
+        </div>
+        <div>
+          <div className="small muted">Responded</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>
+            {summary.responded}
+            <span className="small muted" style={{ fontWeight: 400 }}>
+              {" "}
+              ({summary.awaiting} awaiting)
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="small muted">Won / lost</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>
+            {summary.won} / {summary.lost}
+            <span className="small muted" style={{ fontWeight: 400 }}> ({summary.winRate}%)</span>
+          </div>
+        </div>
+        <div>
+          <div className="small muted">Committed revenue</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>
+            {summary.committed.length === 0
+              ? "—"
+              : summary.committed.map((c) => `${c.currency} ${c.total.toLocaleString()}`).join(" · ")}
+          </div>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="small muted">No requests have been sent to this partner yet.</p>
+      ) : (
+        <table className="data">
+          <thead>
+            <tr>
+              <th>Request</th>
+              <th>Client / order</th>
+              <th>Sent</th>
+              <th>Request status</th>
+              <th>Response</th>
+              <th>Amount</th>
+              <th>Lead time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.dispatch_id}>
+                <td>
+                  <Link href={`/manager/requests/${r.request_id}`}>{r.request_title}</Link>
+                </td>
+                <td className="small">
+                  {r.client_name} · {r.order_number}
+                </td>
+                <td className="small">
+                  {r.sent_at
+                    ? new Date(r.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : "—"}
+                </td>
+                <td>
+                  <Badge status={r.request_status} />
+                </td>
+                <td>
+                  {r.quote_status ? (
+                    <Badge status={r.quote_status} />
+                  ) : (
+                    <span className="small muted">Awaiting quote…</span>
+                  )}
+                </td>
+                <td className="small">
+                  {r.price != null ? `${r.currency} ${r.price.toLocaleString()}` : "—"}
+                </td>
+                <td className="small">
+                  {r.lead_time_days != null ? `${r.lead_time_days} days` : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+export function PartnerDirectoryTable({
+  rows,
+  deletePartner,
+  togglePartnerActive,
+}: {
+  rows: PartnerDirectoryRow[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  deletePartner: (formData: FormData) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  togglePartnerActive: (formData: FormData) => Promise<any>;
+}) {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [productFilter, setProductFilter] = useState("");
+  const [previewPartner, setPreviewPartner] = useState<(typeof rows)[0]["partner"] | null>(null);
+
+  function toggle(id: number) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // Collect all unique product names for the datalist
+  const allProductNames = useMemo(() => {
+    const seen = new Set<string>();
+    for (const { partner } of rows) {
+      for (const pr of partner.products ?? []) {
+        if (pr.name.trim()) seen.add(pr.name.trim());
+      }
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  // Filter rows by product name
+  const filteredRows = useMemo(() => {
+    const q = productFilter.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(({ partner }) =>
+      (partner.products ?? []).some((pr) => pr.name.toLowerCase().includes(q))
+    );
+  }, [rows, productFilter]);
+
+  return (
+    <>
+      {previewPartner && (
+        <ProductModal partner={previewPartner} onClose={() => setPreviewPartner(null)} />
+      )}
+      {/* Product filter bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <div style={{ position: "relative", flex: "0 1 320px" }}>
+          <svg
+            width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2"
+            style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted)", pointerEvents: "none" }}
+          >
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            list="product-names-list"
+            value={productFilter}
+            onChange={(e) => setProductFilter(e.target.value)}
+            placeholder="Filter by product…"
+            style={{
+              width: "100%", padding: "8px 32px 8px 34px",
+              border: "1px solid var(--border)", borderRadius: 8,
+              fontSize: 14, fontFamily: "inherit", background: "#fff", color: "var(--text)",
+            }}
+          />
+          {productFilter && (
+            <button
+              type="button"
+              onClick={() => setProductFilter("")}
+              title="Clear filter"
+              style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--muted)", fontSize: 16, lineHeight: 1, padding: 2,
+              }}
+            >
+              ×
+            </button>
+          )}
+          <datalist id="product-names-list">
+            {allProductNames.map((name) => <option key={name} value={name} />)}
+          </datalist>
+        </div>
+
+        {productFilter && (
+          <span className="small muted">
+            {filteredRows.length} of {rows.length} partner{rows.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+    <table className="data">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Contact</th>
+          <th>Location</th>
+          <th>Products</th>
+          <th>Avg delivery</th>
+          <th>Channels</th>
+          <th>Win rate</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {filteredRows.length === 0 && (
+          <tr>
+            <td colSpan={8} style={{ textAlign: "center", color: "var(--muted)", padding: "28px 0" }}>
+              No partners offer &ldquo;{productFilter}&rdquo;.
+            </td>
+          </tr>
+        )}
+        {filteredRows.map(({ partner: p, stats: s, activity, logoUrl }) => {
+          const inactive = p.active !== 1;
+          const isOpen = expanded.has(p.id);
+          return (
+            <Fragment key={p.id}>
+              <tr style={inactive ? { opacity: 0.55 } : undefined}>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => toggle(p.id)}
+                    className="partner-cell"
+                    title={isOpen ? "Hide activity" : "Show activity"}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      font: "inherit",
+                      color: "inherit",
+                    }}
+                  >
+                    <IconChevron open={isOpen} />
+                    <div className="avatar">
+                      {logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={logoUrl}
+                          alt={p.company}
+                        />
+                      ) : (
+                        <Initials name={p.company} />
+                      )}
+                    </div>
+                    <div>
+                      <strong>{p.company}</strong>
+                      {inactive && (
+                        <>
+                          {" "}
+                          <span className="badge inactive">Deactivated</span>
+                        </>
+                      )}
+                      <div className="small muted">{p.portal_email || p.email || "—"}</div>
+                    </div>
+                  </button>
+                </td>
+                <td>{p.portal_contact_name || p.contact || "—"}</td>
+                <td className="small">{p.location || "—"}</td>
+                <td className="small" style={{ maxWidth: 220 }}>
+                  {p.products && p.products.length > 0 ? (
+                    <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {p.products.map((pr) => pr.name).join(", ")}
+                    </span>
+                  ) : p.categories ? (
+                    <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }} className="muted">
+                      {p.categories.split(",").map((c) => c.trim()).join(", ")}
+                    </span>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td className="small">
+                  {p.avg_delivery_days ? `${p.avg_delivery_days} days` : "—"}
+                </td>
+                <td>
+                  <ChannelPills channels={p.preferred_channels} />
+                </td>
+                <td>
+                  {s.sent > 0 ? `${s.winRate}%` : "—"}
+                  {s.sent > 0 && <span className="small muted"> ({s.sent})</span>}
+                </td>
+                <td>
+                  <div className="inline-actions">
+                    <button
+                      type="button"
+                      className="btn ghost icon"
+                      title="View products"
+                      onClick={() => setPreviewPartner(p)}
+                    >
+                      <IconEye />
+                    </button>
+                    <Link
+                      href={`/manager/partners/${p.id}/edit`}
+                      className="btn ghost icon"
+                      title="Edit partner"
+                    >
+                      <IconEdit />
+                    </Link>
+
+                    {inactive ? (
+                      <form action={togglePartnerActive}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <input type="hidden" name="active" value="1" />
+                        <button className="btn green icon" type="submit" title="Reactivate partner">
+                          <IconPlay />
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={togglePartnerActive}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <input type="hidden" name="active" value="0" />
+                        <button className="btn ghost icon" type="submit" title="Deactivate partner">
+                          <IconPause />
+                        </button>
+                      </form>
+                    )}
+
+                    {s.sent > 0 ? (
+                      <span
+                        className="btn ghost icon"
+                        title={`Cannot delete — ${p.company} has ${s.sent} request${s.sent !== 1 ? "s" : ""} on record. Deactivate instead.`}
+                        style={{ opacity: 0.35, cursor: "not-allowed" }}
+                      >
+                        <IconTrash />
+                      </span>
+                    ) : (
+                      <details style={{ display: "inline-block", position: "relative" }}>
+                        <summary
+                          className="btn danger icon"
+                          style={{ cursor: "pointer", listStyle: "none" }}
+                          title="Delete partner"
+                        >
+                          <IconTrash />
+                        </summary>
+                        <div
+                          className="card"
+                          style={{
+                            position: "absolute",
+                            zIndex: 10,
+                            right: 0,
+                            top: "100%",
+                            marginTop: 6,
+                            minWidth: 220,
+                            padding: "12px 14px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                        >
+                          <p className="small" style={{ margin: "0 0 10px" }}>
+                            Permanently delete <strong>{p.company}</strong>?
+                          </p>
+                          <form action={deletePartner}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <button className="btn sm danger" type="submit">
+                              Yes, delete
+                            </button>
+                          </form>
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                </td>
+              </tr>
+              {isOpen && (
+                <tr>
+                  <td colSpan={8} style={{ background: "#fafafa", padding: "0 16px" }}>
+                    <ActivityPanel activity={activity} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          );
+        })}
+      </tbody>
+    </table>
+    </>
+  );
+}

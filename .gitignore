@@ -1,0 +1,13 @@
+node_modules
+.next
+data
+.vitest-data
+*.log
+.DS_Store
+next-env.d.ts
+tsconfig.tsbuildinfo
+.env.local
+.env.test
+# Partner logo uploads (keep the directory but not the files)
+public/uploads/*
+!public/uploads/.gitkeep

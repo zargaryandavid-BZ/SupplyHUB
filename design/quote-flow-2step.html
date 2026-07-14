@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BazaarPrinting · New quote (2-step)</title>
+<style>
+  :root{
+    --coral:#d9642a; --coral-dark:#b64f1e; --coral-bg:#fdece0;
+    --ink:#111827; --line:#e5e7eb; --surface:#f6f6f5; --field:#fbfbfa;
+    --text:#111827; --muted:#6b7280; --red:#dc2626; --green:#16a34a; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;line-height:1.5}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 22px 70px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  h1{font-size:22px;font-weight:800;margin:0}
+  .cust{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px}
+  .cust .av{width:26px;height:26px;border-radius:50%;background:var(--coral-bg);color:var(--coral-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .cust b{font-weight:700}
+  .steps{display:flex;gap:10px;margin:18px 0 20px}
+  .step{flex:1;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;cursor:pointer}
+  .step .n{width:24px;height:24px;border-radius:50%;background:#e5e7eb;color:#6b7280;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:none}
+  .step .t{font-weight:600;font-size:13px}.step .d{font-size:12px;color:var(--muted)}
+  .step.on{border-color:var(--coral);background:var(--coral-bg)}
+  .step.on .n{background:var(--coral);color:#fff}
+  .step.done .n{background:var(--green);color:#fff}
+  .btn{border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn.dark{background:var(--ink);color:#fff}.btn.dark:hover{background:#000}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{background:#f8f8f7}
+  .btn.coral{background:var(--coral);color:#fff}.btn.coral:hover{background:var(--coral-dark)}
+  .btn.sm{padding:8px 13px;font-size:13px}
+  .li{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;position:relative}
+  .li.active{border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-bg)}
+  .li-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .tag{background:var(--coral-bg);color:var(--coral-dark);font-weight:700;font-size:12px;border-radius:999px;padding:3px 10px}
+  .li-head .nm{font-weight:700;font-size:15px;flex:1}
+  .thumb{width:40px;height:40px;border-radius:10px;background:#fff;border:1px solid var(--line);flex:none}
+  .hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+  .sub{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;margin:0 0 10px}
+  .grid{display:grid;gap:12px}
+  .g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:1fr 1fr}
+  .f label{display:block;font-size:12px;font-weight:600;margin-bottom:5px}
+  .f label .req{color:var(--red)}
+  .f input,.f select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;background:var(--field);color:var(--text)}
+  .f input:focus,.f select:focus{outline:none;border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-bg);background:#fff}
+  .muted{color:var(--muted)}.small{font-size:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;user-select:none}
+  .chip.on{background:var(--coral-bg);border-color:var(--coral);color:var(--coral-dark);font-weight:600}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--muted);background:var(--field);font-size:13px}
+  .price{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .price .lbl{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted)}
+  .price .val{font-size:22px;font-weight:800;color:var(--coral)}
+  .addbar{border:1px dashed var(--line);border-radius:12px;padding:14px;text-align:center;cursor:pointer;color:var(--ink);font-weight:600;background:#fff}
+  .addbar:hover{background:#f8f8f7}
+  .navbar{display:flex;justify-content:space-between;gap:12px;margin-top:20px}
+  .tpl-note{font-size:12px;color:var(--coral-dark);background:var(--coral-bg);border-radius:8px;padding:5px 10px;display:inline-block;margin:0 0 12px}
+  .rev{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+  .rev-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .rev-row:last-child{border-bottom:none}
+  .hide{display:none}
+  .remove{position:absolute;top:12px;right:12px;border:none;background:transparent;color:var(--muted);font-size:18px;cursor:pointer}
+  .remove:hover{color:var(--red)}
+  @media(max-width:720px){.g4,.g3{grid-template-columns:1fr 1fr}.steps{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>New quote</h1>
+    <div class="cust"><span class="av">A</span><span>Quote for <b>Adam</b> · Unity Coffee <span class="muted">· food &amp; beverage</span></span></div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="stepTab0" onclick="go(0)">
+      <span class="n">1</span><div><div class="t">Products &amp; specs</div><div class="d">Pick each product and its details</div></div>
+    </div>
+    <div class="step" id="stepTab1" onclick="go(1)">
+      <span class="n">2</span><div><div class="t">Review &amp; send</div><div class="d">Check the quote, then create it</div></div>
+    </div>
+  </div>
+
+  <!-- STEP 1: one box per line item = product + specs together -->
+  <div id="step0">
+    <div id="items"></div>
+    <div class="addbar" id="addItem">+ Add another product</div>
+    <div class="navbar">
+      <button class="btn ghost">↑ Import from previous quote</button>
+      <button class="btn dark" onclick="go(1)">Review quote →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: review & send -->
+  <div id="step1" class="hide">
+    <div id="review"></div>
+    <div class="navbar">
+      <button class="btn ghost" onclick="go(0)">← Back to editing</button>
+      <button class="btn coral" onclick="alert('Design mockup — this would create the quote.')">Create quote</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var PRODUCTS={
+    box:{name:"Body Lotion Box",shape:"box"},
+    flyer:{name:"Flyer / Poster",shape:"flat"},
+    label:{name:"Labels (Roll)",shape:"roll"},
+    imaging:{name:"Design / Imaging service",shape:"service"},
+  };
+  var CATEGORIES=["Packaging","Print","Large format","Services"];
+  var TEMPLATES={
+    box:["Default (Box)","Premium rigid box","Eco kraft box"],
+    flat:["Default (Flat)","Premium poster"],
+    roll:["Default (Roll)"],
+    service:["Default (Service)"],
+  };
+  var FINISH=["Matte lamination","Gloss lamination","UV coating","Foil","Die cut"];
+
+  function newItem(seed){return Object.assign({
+    id:Date.now()+Math.random(), category:"Packaging", product:"box", template:"Default (Box)",
+    qty:1000, w:"",h:"",d:"", sides:"Single Side", color:"CMYK", finish:[], comment:"",
+    price:"", override:false, serviceType:"Artwork prep", turnaround:"Standard (5 days)"
+  },seed||{});}
+  var items=[newItem({product:"box"})];
+  var step=0;
+  var h=function(t,c,html){var e=document.createElement(t);if(c)e.className=c;if(html!=null)e.innerHTML=html;return e;};
+
+  window.go=function(s){step=s;
+    document.getElementById("step0").classList.toggle("hide",s!==0);
+    document.getElementById("step1").classList.toggle("hide",s!==1);
+    document.getElementById("stepTab0").className="step"+(s===0?" on":" done");
+    document.getElementById("stepTab1").className="step"+(s===1?" on":"");
+    if(s===0)renderItems(); else renderReview();
+    window.scrollTo(0,0);
+  };
+
+  function renderItems(){
+    var box=document.getElementById("items");box.innerHTML="";
+    items.forEach(function(it,i){
+      var shape=PRODUCTS[it.product].shape;
+      var card=h("div","li"+(i===0?" active":""));
+      if(items.length>1){var rm=h("button","remove","×");rm.onclick=function(){items.splice(i,1);renderItems();};card.appendChild(rm);}
+      card.appendChild(h("div","li-head",'<span class="thumb"></span><span class="tag">#552-'+(i+1)+'</span><span class="nm">'+PRODUCTS[it.product].name+'</span>'));
+
+      // --- Product row ---
+      var g=h("div","grid g4");
+      g.appendChild(field("Category","req",selectEl(CATEGORIES,it.category,function(v){it.category=v;})));
+      g.appendChild(field("Product","req",selectEl(Object.keys(PRODUCTS).map(function(k){return {v:k,t:PRODUCTS[k].name};}),it.product,function(v){it.product=v;it.template=TEMPLATES[PRODUCTS[v].shape][0];renderItems();})));
+      g.appendChild(field("Template",null,selectEl(TEMPLATES[shape],it.template,function(v){it.template=v;})));
+      g.appendChild(field("Quantity","req",numEl(it.qty,function(v){it.qty=v;})));
+      card.appendChild(g);
+
+      // --- Specs (same box), driven by template ---
+      card.appendChild(h("hr","hr"));
+      card.appendChild(h("div","sub","Specifications"));
+      card.appendChild(h("div","tpl-note","From template: "+it.template));
+
+      if(shape==="box"||shape==="flat"||shape==="roll"){
+        var dims=h("div","grid "+(shape==="box"?"g3":"g2"));
+        dims.appendChild(field("Width (in)",null,numEl(it.w,function(v){it.w=v;},"e.g. 4.0")));
+        dims.appendChild(field("Height (in)",null,numEl(it.h,function(v){it.h=v;},"e.g. 3.0")));
+        if(shape==="box")dims.appendChild(field("Depth (in)",null,numEl(it.d,function(v){it.d=v;},"e.g. 2.0")));
+        card.appendChild(dims);
+        var g2=h("div","grid g2");
+        g2.appendChild(field("Sides",null,selectEl(["Single Side","Double Side"],it.sides,function(v){it.sides=v;})));
+        g2.appendChild(field("Color mode",null,selectEl(["CMYK","1 color","2 color","Pantone"],it.color,function(v){it.color=v;})));
+        card.appendChild(g2);
+        var fw=h("div","f");fw.appendChild(h("label",null,"Finishing"));
+        var chips=h("div","chips");
+        FINISH.forEach(function(f){var c=h("span","chip"+(it.finish.indexOf(f)>=0?" on":""),f);c.onclick=function(){var k=it.finish.indexOf(f);if(k>=0)it.finish.splice(k,1);else it.finish.push(f);renderItems();};chips.appendChild(c);});
+        fw.appendChild(chips);card.appendChild(fw);
+      } else if(shape==="service"){
+        var gs=h("div","grid g2");
+        gs.appendChild(field("Service type","req",selectEl(["Logo design","Artwork prep","Photo retouch","Prepress check"],it.serviceType,function(v){it.serviceType=v;})));
+        gs.appendChild(field("Turnaround","req",selectEl(["24h rush","2–3 days","Standard (5 days)"],it.turnaround,function(v){it.turnaround=v;})));
+        card.appendChild(gs);
+      }
+
+      // artwork
+      var aw=h("div","f");aw.style.marginTop="12px";
+      aw.appendChild(h("label",null,"Artwork"));
+      aw.appendChild(h("div","drop","🖼 Drag &amp; drop artwork here — or click to browse (PDF, AI, PNG, JPG)"));
+      card.appendChild(aw);
+
+      // comment + price
+      var row=h("div","grid g2");row.style.marginTop="12px";row.style.alignItems="start";
+      row.appendChild(field("Line item comment (optional)",null,textEl(it.comment,function(v){it.comment=v;})));
+      var price=h("div","price");
+      price.innerHTML='<div class="lbl">ESTIMATED PRICE</div><div class="val">'+(it.override&&it.price?("$"+it.price):"— pending —")+'</div>'+
+        '<label class="small muted" style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" '+(it.override?"checked":"")+'> Override with manual price</label>';
+      row.appendChild(price);
+      card.appendChild(row);
+      price.querySelector("input").onchange=function(e){it.override=e.target.checked;renderItems();};
+
+      box.appendChild(card);
+    });
+  }
+
+  function specSummary(it){
+    var shape=PRODUCTS[it.product].shape;
+    if(shape==="service")return it.serviceType+" · "+it.turnaround;
+    var dim=[it.w,it.h].filter(Boolean).join("×")+(shape==="box"&&it.d?("×"+it.d):"");
+    var parts=[];if(dim)parts.push(dim+" in");parts.push(it.sides,it.color);if(it.finish.length)parts.push(it.finish.join(", "));
+    return parts.filter(Boolean).join(" · ");
+  }
+
+  function renderReview(){
+    var box=document.getElementById("review");box.innerHTML="";
+    var head=h("div","rev");
+    head.innerHTML='<div class="sub">Customer</div><div><b>Adam</b> · Unity Coffee <span class="muted">· roasting@unity.coffee · 413-244-7602</span></div>';
+    box.appendChild(head);
+    var listCard=h("div","rev");
+    listCard.appendChild(h("div","sub","Line items ("+items.length+")"));
+    items.forEach(function(it,i){
+      var r=h("div","rev-row");
+      r.innerHTML='<div><b>#552-'+(i+1)+' '+PRODUCTS[it.product].name+'</b> <span class="muted">· qty '+Number(it.qty).toLocaleString()+' · '+it.template+'</span><div class="small muted">'+specSummary(it)+'</div></div>'+
+        '<div style="text-align:right;font-weight:700;color:var(--coral)">'+(it.override&&it.price?("$"+it.price):"pending")+'</div>';
+      listCard.appendChild(r);
+    });
+    var tot=h("div","rev-row");tot.style.fontWeight="800";
+    tot.innerHTML='<div>Estimated total</div><div class="muted">— pending pricing engine —</div>';
+    listCard.appendChild(tot);
+    box.appendChild(listCard);
+  }
+
+  function field(label,req,control){var f=h("div","f");f.appendChild(h("label",null,label+(req?' <span class="req">*</span>':"")));f.appendChild(control);return f;}
+  function selectEl(opts,val,cb){var s=document.createElement("select");opts.forEach(function(o){var v=(typeof o==="object")?o.v:o;var t=(typeof o==="object")?o.t:o;var op=document.createElement("option");op.value=v;op.textContent=t;if(v===val)op.selected=true;s.appendChild(op);});s.onchange=function(){cb(s.value);};return s;}
+  function numEl(val,cb,ph){var i=document.createElement("input");i.type="number";i.value=val;if(ph)i.placeholder=ph;i.oninput=function(){cb(i.value);};return i;}
+  function textEl(val,cb){var i=document.createElement("input");i.type="text";i.value=val;i.placeholder="Optional notes for this SKU…";i.oninput=function(){cb(i.value);};return i;}
+
+  document.getElementById("addItem").onclick=function(){items.push(newItem());renderItems();};
+  go(0);
+})();
+</script>
+</body>
+</html>

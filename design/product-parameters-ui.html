@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SupplyHUB · Product parameters</title>
+<style>
+  :root{
+    --indigo:#2563eb; --indigo-hover:#1d4ed8; --indigo-50:#eef2ff;
+    --bg:#f9fafb; --card:#fff; --border:#e5e7eb; --border-soft:#f1f5f9;
+    --text:#111827; --muted:#6b7280;
+    --green:#16a34a; --green-bg:#dcfce7; --green-text:#15803d;
+    --amber-bg:#fef3c7; --amber-text:#b45309;
+    --red:#dc2626; --red-bg:#fee2e2; --red-text:#dc2626;
+    --radius:12px; --radius-sm:8px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:26px 24px}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.4px;margin:0}
+  .sub{color:var(--muted);font-size:14px;margin:4px 0 0}
+  .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .btn{display:inline-flex;align-items:center;gap:6px;background:var(--indigo);color:#fff;border:none;padding:9px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--indigo-hover)}
+  .btn.ghost{background:#fff;color:#374151;border:1px solid var(--border)}
+  .btn.ghost:hover{background:#f9fafb}
+  .btn.sm{padding:6px 12px;font-size:13px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;font-weight:500;color:#374151;cursor:pointer}
+  .tab[aria-selected="true"]{background:var(--indigo-50);border-color:#c7d2fe;color:var(--indigo);font-weight:600}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 4px 12px}
+  .legend b{font-weight:600}
+  .col-head,.prow{display:grid;grid-template-columns:26px 1.5fr 1.1fr 1.5fr 1.6fr 34px 30px;gap:10px;align-items:center}
+  .col-head{padding:0 14px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:600}
+  .prow{padding:12px 14px}
+  .pwrap{border-top:1px solid var(--border-soft)}
+  .pwrap:first-child{border-top:none}
+  .pwrap.off{opacity:.5}
+  .pname{font-weight:600}
+  .reorder{display:flex;flex-direction:column;gap:1px}
+  .reorder button{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;line-height:1;padding:1px}
+  .reorder button:hover{color:var(--indigo)}
+  select,input[type=text],input[type=number],input[type=date]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;background:#fff;color:var(--text)}
+  select:focus,input:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;width:100%}
+  .seg button{flex:1;border:none;background:#fff;padding:7px 4px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:none}
+  .seg button.on[data-v=off]{background:#f1f5f9;color:#475569}
+  .seg button.on[data-v=optional]{background:var(--indigo-50);color:var(--indigo)}
+  .seg button.on[data-v=required]{background:var(--amber-bg);color:var(--amber-text)}
+  .eye{border:1px solid var(--border);background:#fff;border-radius:var(--radius-sm);height:34px;cursor:pointer;color:var(--muted);font-size:15px}
+  .eye.on{color:var(--indigo);border-color:#c7d2fe;background:var(--indigo-50)}
+  .del{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:17px;line-height:1}
+  .del:hover{color:var(--red)}
+  .optbtn{width:100%;justify-content:flex-start;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  /* Options sub-panel */
+  .subpanel{background:#f9fafb;border-top:1px dashed var(--border);padding:12px 16px 14px 50px}
+  .sp-note{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .opt-row{display:grid;grid-template-columns:24px auto 1fr 30px;gap:8px;align-items:center;margin-bottom:6px}
+  .opt-def{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+  .foot{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-top:1px solid var(--border-soft)}
+  .preview{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .preview h3{margin:0 0 12px;font-size:15px;font-weight:700}
+  .pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pv-field .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+  .pv-field .box{border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;background:#fff;min-height:36px}
+  .chip{display:inline-block;font-size:12px;background:var(--indigo-50);color:var(--indigo);border-radius:999px;padding:2px 9px;margin:2px 4px 2px 0}
+  .req-star{color:var(--amber-text);font-weight:700}
+  .pill{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;background:#f1f5f9;color:#64748b;margin-left:4px}
+  @media(max-width:780px){.col-head{display:none}.prow{grid-template-columns:1fr;gap:8px}.subpanel{padding-left:16px}.pv-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>Product parameters</h1>
+      <p class="sub">Choose which fields appear on each product's request form, whether they're required, and their preset choices &amp; defaults.</p>
+    </div>
+    <button class="btn" onclick="alert('Design mockup — wire this to your save action.')">Save changes</button>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="legend">
+    <span><b style="color:#475569">Off</b> — hidden</span>
+    <span><b style="color:var(--indigo)">Optional</b> — shown, not mandatory</span>
+    <span><b style="color:var(--amber-text)">Required</b> — must be filled</span>
+    <span>👁 visibility to partner</span>
+    <span>⚙ define choices &amp; default for dropdowns</span>
+  </div>
+
+  <div class="card">
+    <div class="col-head">
+      <span></span><span>Parameter</span><span>Type</span><span>Requirement</span><span>Choices / default</span><span>Partner</span><span></span>
+    </div>
+    <div id="rows"></div>
+    <div class="foot">
+      <button class="btn ghost sm" id="addBtn">+ Add parameter</button>
+      <span class="small muted" id="count"></span>
+    </div>
+  </div>
+
+  <div class="preview">
+    <h3>Request form preview <span class="muted small" id="tplName"></span></h3>
+    <div class="pv-grid" id="preview"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var TYPES={number:"Number",dropdown:"Dropdown",multi:"Multi-select",date:"Date",upload:"File upload",text:"Text"};
+  function P(o){return {
+    label:o.label, type:o.type, state:o.state, visible:o.visible!==false,
+    def:o.def||"",                       // number/text default
+    options:o.options?o.options.slice():[], // dropdown/multi choices
+    defOne:o.defOne||"",                 // dropdown default (one, "" = none)
+    defMany:o.defMany?o.defMany.slice():[], // multi defaults
+    _open:false
+  };}
+  var templates={
+    book:{name:"Hardcover book A4",params:[
+      P({label:"Quantity",type:"number",state:"required",def:"1000"}),
+      P({label:"Size",type:"dropdown",state:"required",options:["A4","A5","A6","Letter","Custom"],defOne:"A4"}),
+      P({label:"Pages",type:"number",state:"required",def:"200"}),
+      P({label:"Color",type:"dropdown",state:"optional",options:["4/4 full color","4/0","1/0 black only"],defOne:"4/4 full color"}),
+      P({label:"Binding",type:"dropdown",state:"required",options:["Sewn","Perfect bound","Saddle stitch","Spiral"],defOne:"Sewn"}),
+      P({label:"Cover material",type:"dropdown",state:"optional",options:["Matte board","Gloss board","Linen","Leatherette"],defOne:"Matte board"}),
+      P({label:"Finishing",type:"multi",state:"optional",options:["Matte lamination","Gloss lamination","UV coating","Foil stamping","Embossing"],defMany:["Matte lamination"]}),
+      P({label:"Needed by",type:"date",state:"required"}),
+      P({label:"Reference files",type:"upload",state:"optional",visible:false}),
+    ]},
+    brochure:{name:"Tri-fold brochure A4",params:[
+      P({label:"Quantity",type:"number",state:"required",def:"5000"}),
+      P({label:"Size",type:"dropdown",state:"required",options:["A4","A5","DL"],defOne:"A4"}),
+      P({label:"Color",type:"dropdown",state:"required",options:["4/4 full color","4/0"],defOne:"4/4 full color"}),
+      P({label:"Paper",type:"dropdown",state:"required",options:["130gsm gloss","150gsm gloss","170gsm silk","300gsm"],defOne:"150gsm gloss"}),
+      P({label:"Finishing",type:"multi",state:"optional",options:["Folding","Matte lamination","Gloss lamination","Die cutting"],defMany:["Folding"]}),
+      P({label:"Needed by",type:"date",state:"required"}),
+      P({label:"Reference files",type:"upload",state:"required",visible:true}),
+    ]},
+    banner:{name:"Roll-up banner 85×200",params:[
+      P({label:"Quantity",type:"number",state:"required",def:"10"}),
+      P({label:"Size",type:"dropdown",state:"required",options:["85×200 cm","100×200 cm","120×200 cm"],defOne:"85×200 cm"}),
+      P({label:"Material",type:"dropdown",state:"required",options:["Vinyl","Fabric","Blockout film"],defOne:"Vinyl"}),
+      P({label:"Color",type:"dropdown",state:"optional",options:["4/0","4/4"],defOne:"4/0"}),
+      P({label:"Needed by",type:"date",state:"required"}),
+      P({label:"Reference files",type:"upload",state:"required",visible:true}),
+    ]},
+  };
+  var order=["book","brochure","banner"];
+  var current="book";
+  var STATES=[["off","Off"],["optional","Optional"],["required","Required"]];
+
+  var tabsEl=document.getElementById("tabs");
+  order.forEach(function(id){
+    var b=document.createElement("button");
+    b.className="tab";b.textContent=templates[id].name;b.dataset.id=id;
+    b.setAttribute("aria-selected",id===current);
+    b.onclick=function(){current=id;render();};
+    tabsEl.appendChild(b);
+  });
+
+  var rowsEl=document.getElementById("rows");
+  var el; // helper
+  function h(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+
+  function reconcile(p){
+    // keep defaults valid after option edits
+    if(p.type==="dropdown" && p.options.indexOf(p.defOne)===-1) p.defOne="";
+    if(p.type==="multi") p.defMany=p.defMany.filter(function(o){return p.options.indexOf(o)!==-1;});
+  }
+
+  function defaultSummary(p){
+    if(p.type==="dropdown") return p.defOne?("default: "+p.defOne):"no default";
+    if(p.type==="multi") return p.defMany.length?(p.defMany.length+" default"+(p.defMany.length!==1?"s":"")):"no default";
+    return "";
+  }
+
+  function render(){
+    var t=templates[current];
+    Array.prototype.forEach.call(tabsEl.children,function(b){b.setAttribute("aria-selected",b.dataset.id===current);});
+    document.getElementById("tplName").textContent="· "+t.name;
+    rowsEl.innerHTML="";
+
+    t.params.forEach(function(p,i){
+      reconcile(p);
+      var wrap=h("div","pwrap"+(p.state==="off"?" off":""));
+      var row=h("div","prow");
+
+      var reorder=h("div","reorder","<button title='Move up'>▲</button><button title='Move down'>▼</button>");
+      reorder.children[0].onclick=function(){if(i>0){t.params.splice(i-1,0,t.params.splice(i,1)[0]);render();}};
+      reorder.children[1].onclick=function(){if(i<t.params.length-1){t.params.splice(i+1,0,t.params.splice(i,1)[0]);render();}};
+
+      var name=h("div",null,"<div class='pname'>"+p.label+"</div>");
+
+      var typeWrap=h("div");
+      var sel=document.createElement("select");
+      Object.keys(TYPES).forEach(function(k){var o=document.createElement("option");o.value=k;o.textContent=TYPES[k];if(k===p.type)o.selected=true;sel.appendChild(o);});
+      sel.onchange=function(){p.type=sel.value;p._open=(sel.value==="dropdown"||sel.value==="multi");render();};
+      typeWrap.appendChild(sel);
+
+      var seg=h("div","seg");
+      STATES.forEach(function(s){
+        var btn=document.createElement("button");btn.textContent=s[1];btn.dataset.v=s[0];
+        if(p.state===s[0])btn.classList.add("on");
+        btn.onclick=function(){p.state=s[0];render();};
+        seg.appendChild(btn);
+      });
+
+      var defCell=h("div");
+      if(p.state==="off"){defCell.innerHTML="<span class='small muted'>not shown</span>";}
+      else if(p.type==="dropdown"||p.type==="multi"){
+        var ob=h("button","btn ghost sm optbtn","⚙ "+p.options.length+" choices · "+defaultSummary(p));
+        ob.onclick=function(){p._open=!p._open;render();};
+        defCell.appendChild(ob);
+      }
+      else if(p.type==="upload"){defCell.innerHTML="<span class='small muted'>— n/a —</span>";}
+      else if(p.type==="date"){var di=document.createElement("input");di.type="date";defCell.appendChild(di);}
+      else{var inp=document.createElement("input");inp.type=p.type==="number"?"number":"text";inp.value=p.def;inp.placeholder="default";inp.oninput=function(){p.def=inp.value;updatePreview();};defCell.appendChild(inp);}
+
+      var eye=document.createElement("button");
+      eye.className="eye"+(p.visible?" on":"");
+      eye.textContent=p.visible?"👁":"🚫";
+      eye.title=p.visible?"Visible to partner":"Internal only (hidden from partner)";
+      eye.onclick=function(){p.visible=!p.visible;render();};
+
+      var del=h("button","del","×");del.title="Remove parameter";
+      del.onclick=function(){t.params.splice(i,1);render();};
+
+      row.appendChild(reorder);row.appendChild(name);row.appendChild(typeWrap);
+      row.appendChild(seg);row.appendChild(defCell);row.appendChild(eye);row.appendChild(del);
+      wrap.appendChild(row);
+
+      // Options sub-panel
+      if(p._open && p.state!=="off" && (p.type==="dropdown"||p.type==="multi")){
+        wrap.appendChild(buildOptionsPanel(p));
+      }
+      rowsEl.appendChild(wrap);
+    });
+    document.getElementById("count").textContent=t.params.length+" parameters";
+    updatePreview();
+  }
+
+  function buildOptionsPanel(p){
+    var sp=h("div","subpanel");
+    sp.appendChild(h("div","sp-note", p.type==="multi"
+      ? "Multi-select — tick any choices that should be pre-selected by default (zero or more)."
+      : "Dropdown — pick one choice as the default (or leave none)."));
+
+    var listId="def-"+Math.random().toString(36).slice(2);
+    p.options.forEach(function(opt,oi){
+      var orow=h("div","opt-row");
+      // reorder
+      var re=h("div","reorder","<button title='Up'>▲</button><button title='Down'>▼</button>");
+      re.children[0].onclick=function(){if(oi>0){p.options.splice(oi-1,0,p.options.splice(oi,1)[0]);render();}};
+      re.children[1].onclick=function(){if(oi<p.options.length-1){p.options.splice(oi+1,0,p.options.splice(oi,1)[0]);render();}};
+      // default selector
+      var defWrap=h("label","opt-def");
+      var input=document.createElement("input");
+      if(p.type==="multi"){input.type="checkbox";input.checked=p.defMany.indexOf(opt)!==-1;
+        input.onchange=function(){if(input.checked){if(p.defMany.indexOf(opt)===-1)p.defMany.push(opt);}else{p.defMany=p.defMany.filter(function(x){return x!==opt;});}render();};
+      }else{input.type="radio";input.name=listId;input.checked=p.defOne===opt;
+        input.onchange=function(){p.defOne=opt;render();};
+      }
+      defWrap.appendChild(input);defWrap.appendChild(document.createTextNode("default"));
+      // text
+      var txt=document.createElement("input");txt.type="text";txt.value=opt;
+      txt.oninput=function(){
+        var old=p.options[oi];p.options[oi]=txt.value;
+        if(p.defOne===old)p.defOne=txt.value;
+        p.defMany=p.defMany.map(function(x){return x===old?txt.value:x;});
+        updatePreview();
+      };
+      // remove
+      var rm=h("button","del","×");rm.title="Remove choice";
+      rm.onclick=function(){p.options.splice(oi,1);render();};
+
+      orow.appendChild(re);orow.appendChild(defWrap);orow.appendChild(txt);orow.appendChild(rm);
+      sp.appendChild(orow);
+    });
+
+    var add=h("button","btn ghost sm","+ Add choice");
+    add.onclick=function(){p.options.push("New option");render();};
+    var clear=h("button","btn ghost sm","Clear default");
+    clear.style.marginLeft="8px";
+    clear.onclick=function(){p.defOne="";p.defMany=[];render();};
+    var bar=h("div");bar.style.marginTop="8px";bar.appendChild(add);bar.appendChild(clear);
+    sp.appendChild(bar);
+    return sp;
+  }
+
+  document.getElementById("addBtn").onclick=function(){
+    var label=prompt("New parameter name:");
+    if(label){templates[current].params.push(P({label:label,type:"text",state:"optional"}));render();}
+  };
+
+  function updatePreview(){
+    var t=templates[current];var pv=document.getElementById("preview");pv.innerHTML="";
+    var shown=t.params.filter(function(p){return p.state!=="off";});
+    if(!shown.length){pv.innerHTML="<span class='small muted'>No fields enabled for this product.</span>";return;}
+    shown.forEach(function(p){
+      var cell=h("div","pv-field");
+      var star=p.state==="required"?" <span class='req-star'>*</span>":"";
+      var internal=p.visible?"":"<span class='pill'>internal</span>";
+      var box;
+      if(p.type==="dropdown"){
+        box="<select>"+(p.defOne?"":"<option>— select —</option>")+p.options.map(function(o){return "<option"+(o===p.defOne?" selected":"")+">"+o+"</option>";}).join("")+"</select>";
+      }else if(p.type==="multi"){
+        box=p.options.length?p.options.map(function(o){var on=p.defMany.indexOf(o)!==-1;return "<span class='chip' style='"+(on?"":"background:#f1f5f9;color:#94a3b8")+"'>"+(on?"✓ ":"")+o+"</span>";}).join(""):"<span class='small muted'>no choices yet</span>";
+      }else if(p.type==="date"){box="<input type='date' disabled>";}
+      else if(p.type==="upload"){box="<span class='small muted'>file upload</span>";}
+      else{box="<div style='color:"+(p.def?"var(--text)":"var(--muted)")+"'>"+(p.def||"…")+"</div>";}
+      cell.innerHTML="<div class='lbl'>"+p.label+star+internal+"</div><div class='box'>"+box+"</div>";
+      pv.appendChild(cell);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
