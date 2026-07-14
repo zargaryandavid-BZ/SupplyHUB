@@ -51,6 +51,9 @@ export default async function PartnerHome() {
         <WonRequestsSection
           items={requests.filter((r) => bucketOf(r) === "Won")}
           companyName={settings.company_name ?? actor.partner.company}
+          contactName={settings.contact_name}
+          contactPhone={settings.contact_phone}
+          contactEmail={settings.contact_email}
         />
 
         {/* All non-won requests with status filter */}

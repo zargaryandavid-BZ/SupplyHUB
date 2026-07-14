@@ -7,9 +7,39 @@ import type { PartnerRequestRow } from "@/lib/data";
 type Props = {
   items: PartnerRequestRow[];
   companyName: string;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
 };
 
-function printRequestPDF(r: PartnerRequestRow, companyName: string) {
+function printRequestPDF(
+  r: PartnerRequestRow,
+  companyName: string,
+  contactName?: string | null,
+  contactPhone?: string | null,
+  contactEmail?: string | null,
+) {
+  // #region agent log
+  fetch('http://127.0.0.1:7414/ingest/69ad28d6-3417-4a08-9757-3f740b8c55d0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c88ff0'},body:JSON.stringify({sessionId:'c88ff0',location:'WonRequestsSection.tsx:printRequestPDF',message:'subtitle inputs',data:{category:r.category,order_id:r.order_id},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  const subtitleParts = [r.category, r.order_id ? `Order #${r.order_id}` : null].filter(Boolean);
+  const subtitle = subtitleParts.join(" · ");
+
+  const dims = [r.width, r.height, r.depth].filter((v) => v != null);
+  const dimensionsStr = dims.length
+    ? `${dims.join(" × ")} ${r.size_unit || "mm"}`
+    : r.standard_size || "—";
+
+  const contactBlock = (contactName || contactPhone || contactEmail)
+    ? `<div class="section">
+    <div class="section-title">Contact</div>
+    <div class="grid">
+      ${contactName ? `<div class="field"><label>Contact</label><span>${contactName}</span></div>` : ""}
+      ${contactPhone ? `<div class="field"><label>Phone</label><span>${contactPhone}</span></div>` : ""}
+      ${contactEmail ? `<div class="field"><label>Email</label><span>${contactEmail}</span></div>` : ""}
+    </div>
+  </div>` : "";
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -18,20 +48,23 @@ function printRequestPDF(r: PartnerRequestRow, companyName: string) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; padding: 40px; font-size: 14px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #fbbf24; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #fbbf24; }
     .header-left h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
     .header-left p { color: #6b7280; font-size: 13px; }
     .won-badge { background: linear-gradient(135deg,#fbbf24,#f59e0b); color: #fff; font-weight: 700; font-size: 13px; padding: 6px 14px; border-radius: 20px; letter-spacing: 0.5px; }
-    .company { font-size: 13px; color: #6b7280; margin-bottom: 28px; }
-    .section { margin-bottom: 24px; }
+    .company { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+    .section { margin-bottom: 20px; }
     .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af; margin-bottom: 10px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
     .field { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; }
     .field label { font-size: 11px; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
     .field span { font-size: 14px; font-weight: 600; color: #111; }
+    .field.full { grid-column: 1 / -1; }
     .price-field { background: #f0fdf4; border-color: #bbf7d0; }
     .price-field span { color: #15803d; font-size: 18px; }
-    .footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
+    .specs-text { white-space: pre-wrap; font-weight: 400 !important; font-size: 13px !important; line-height: 1.5; }
+    .footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; display: flex; justify-content: space-between; }
     @media print {
       body { padding: 24px; }
       @page { margin: 16mm; }
@@ -42,14 +75,23 @@ function printRequestPDF(r: PartnerRequestRow, companyName: string) {
   <div class="header">
     <div class="header-left">
       <h1>${r.title}</h1>
-      <p>${r.category || ""}</p>
+      <p>${subtitle}</p>
     </div>
     <span class="won-badge">🏆 WON</span>
   </div>
   <div class="company">Awarded by <strong>${companyName}</strong></div>
+
   <div class="section">
     <div class="section-title">Order details</div>
     <div class="grid">
+      <div class="field price-field">
+        <label>Agreed price</label>
+        <span>${r.price != null ? `${r.currency || "$"}${r.price.toLocaleString()}` : "—"}</span>
+      </div>
+      <div class="field">
+        <label>Lead time</label>
+        <span>${r.lead_time_days != null ? `${r.lead_time_days} days` : "—"}</span>
+      </div>
       <div class="field">
         <label>Quantity</label>
         <span>${r.quantity ? r.quantity.toLocaleString() : "—"}</span>
@@ -58,17 +100,39 @@ function printRequestPDF(r: PartnerRequestRow, companyName: string) {
         <label>Needed by</label>
         <span>${r.needed_by || "—"}</span>
       </div>
-      <div class="field price-field">
-        <label>Agreed price</label>
-        <span>${r.price != null ? `$${r.price.toLocaleString()}` : "—"}</span>
-      </div>
-      <div class="field">
-        <label>Lead time</label>
-        <span>${r.lead_time_days != null ? `${r.lead_time_days} days` : "—"}</span>
-      </div>
+      ${r.valid_until ? `<div class="field"><label>Valid until</label><span>${r.valid_until}</span></div>` : ""}
+      ${r.conditions ? `<div class="field full"><label>Conditions</label><span style="font-weight:400;font-size:13px">${r.conditions}</span></div>` : ""}
     </div>
   </div>
-  <div class="footer">Generated ${new Date().toLocaleDateString()} · SupplyerHUB</div>
+
+  <div class="section">
+    <div class="section-title">Product specifications</div>
+    <div class="grid">
+      <div class="field">
+        <label>Dimensions</label>
+        <span>${dimensionsStr}</span>
+      </div>
+      <div class="field">
+        <label>Material</label>
+        <span>${r.material || "—"}</span>
+      </div>
+      <div class="field full">
+        <label>Finishing</label>
+        <span>${r.finishing || "—"}</span>
+      </div>
+      ${r.specs ? `<div class="field full">
+        <label>Specifications</label>
+        <span class="specs-text">${r.specs}</span>
+      </div>` : ""}
+    </div>
+  </div>
+
+  ${contactBlock}
+
+  <div class="footer">
+    <span>Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
+    <span>SupplyerHUB</span>
+  </div>
   <script>window.onload = function(){ window.print(); }<\/script>
 </body>
 </html>`;
@@ -79,7 +143,7 @@ function printRequestPDF(r: PartnerRequestRow, companyName: string) {
   w.document.close();
 }
 
-export function WonRequestsSection({ items, companyName }: Props) {
+export function WonRequestsSection({ items, companyName, contactName, contactPhone, contactEmail }: Props) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -199,7 +263,7 @@ export function WonRequestsSection({ items, companyName }: Props) {
                     <button
                       type="button"
                       className="pdf-btn"
-                      onClick={() => printRequestPDF(r, companyName)}
+                      onClick={() => printRequestPDF(r, companyName, contactName, contactPhone, contactEmail)}
                       title="Download as PDF"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

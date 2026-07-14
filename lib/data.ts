@@ -391,8 +391,11 @@ export type PartnerRequestRow = ProductRequest & {
   dispatch_id: number;
   quote_id: number | null;
   price: number | null;
+  currency: string | null;
   quote_status: string | null;
   lead_time_days: number | null;
+  valid_until: string | null;
+  conditions: string | null;
 };
 
 export async function partnerRequests(partnerId: number): Promise<PartnerRequestRow[]> {
@@ -413,7 +416,7 @@ export async function partnerRequests(partnerId: number): Promise<PartnerRequest
   const dispatchIds = dispatches.map((d) => d.id as number);
   const { data: quotes } = await sb
     .from("quotes")
-    .select("id, dispatch_id, price, status, lead_time_days")
+    .select("id, dispatch_id, price, currency, status, lead_time_days, valid_until, conditions")
     .in("dispatch_id", dispatchIds);
 
   const quoteByDispatch = Object.fromEntries(
@@ -432,8 +435,11 @@ export async function partnerRequests(partnerId: number): Promise<PartnerRequest
         dispatch_id: disp?.id ?? 0,
         quote_id: q?.id ?? null,
         price: q?.price ?? null,
+        currency: q?.currency ?? null,
         quote_status: q?.status ?? null,
         lead_time_days: q?.lead_time_days ?? null,
+        valid_until: q?.valid_until ?? null,
+        conditions: q?.conditions ?? null,
       };
     })
     .filter((r) => r.dispatch_id !== 0)

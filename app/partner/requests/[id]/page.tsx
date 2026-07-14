@@ -24,7 +24,7 @@ export default async function PartnerRequestDetail({
     getSettings(),
   ]);
   if (!data) notFound();
-  const { row, quote, messages } = data;
+  const { row, quote = null, messages } = data;
 
   // Resolve attachment keys → signed URLs (private bucket, 1 h expiry)
   let attachmentUrls: { url: string; name: string }[] = [];
