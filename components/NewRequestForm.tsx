@@ -236,7 +236,7 @@ export function NewRequestForm({
             </div>
             <div className="field" style={{ marginBottom: 8 }}>
               <label>Unit</label>
-              <select name="size_unit" defaultValue="mm">
+              <select name="size_unit" defaultValue="in">
                 <option value="mm">mm</option>
                 <option value="cm">cm</option>
                 <option value="in">in</option>
