@@ -342,6 +342,36 @@ export function PartnerForm({
 
           {/* ── Right column ── */}
           <div>
+            {/* Internal notes */}
+            <div className="card" style={card}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <p className="card-section-title" style={{ marginBottom: 0 }}>Internal notes</p>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.5px",
+                  textTransform: "uppercase", color: "#92400e",
+                  background: "#fef3c7", border: "1px solid #fde68a",
+                  borderRadius: 4, padding: "1px 6px",
+                }}>Manager only</span>
+              </div>
+              <p className="small muted" style={{ margin: "0 0 10px" }}>
+                Private comments, reminders, or context about this partner. Never visible to the partner.
+              </p>
+              <textarea
+                name="internal_notes"
+                placeholder="e.g. Reliable for rush jobs. Prefers email. Discount negotiated for Q3."
+                defaultValue={partner?.internal_notes ?? ""}
+                onChange={markDirty}
+                rows={5}
+                style={{
+                  width: "100%", fontFamily: "inherit", fontSize: 13,
+                  lineHeight: 1.55, resize: "vertical", borderRadius: 7,
+                  border: "1px solid var(--border)", padding: "8px 10px",
+                  background: "#fffbeb", color: "#1c1917",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
             {/* Portal access */}
             <div className="card" style={card}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>

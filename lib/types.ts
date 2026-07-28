@@ -33,6 +33,7 @@ export type Partner = {
   products?: PartnerProduct[];  // products this partner offers, with MOQ / delivery / price
   created_at: string | null;
   portal_token: string | null;
+  internal_notes: string | null;  // manager-only notes, never shown to partners
 };
 
 export type Client = {

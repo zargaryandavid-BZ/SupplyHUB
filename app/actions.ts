@@ -783,6 +783,7 @@ function parsePartnerInput(formData: FormData): PartnerInput {
     portal_contact_name:
       [str(formData, "portal_contact_first"), str(formData, "portal_contact_last")].filter(Boolean).join(" ") || null,
     portal_email: str(formData, "portal_email") || null,
+    internal_notes: str(formData, "internal_notes") || null,
   };
 }
 

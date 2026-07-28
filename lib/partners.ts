@@ -21,6 +21,7 @@ export type PartnerInput = {
   portal_contact_name?: string | null;
   portal_email?: string | null;
   logo_path?: string | null;
+  internal_notes?: string | null;
 };
 
 export async function addPartner(input: PartnerInput): Promise<Partner> {
@@ -90,6 +91,7 @@ export async function updatePartner(
     updateObj.portal_contact_name = input.portal_contact_name ?? null;
   if (input.portal_email !== undefined) updateObj.portal_email = input.portal_email ?? null;
   if (input.products !== undefined) updateObj.products = input.products ?? [];
+  if (input.internal_notes !== undefined) updateObj.internal_notes = input.internal_notes ?? null;
 
   if (!Object.keys(updateObj).length) {
     const { data, error } = await supabaseAdmin()
