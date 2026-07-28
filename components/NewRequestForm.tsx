@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { ImageUpload } from "./ImageUpload";
 import type { PreviousProductQuote } from "@/lib/data";
 
@@ -79,6 +79,16 @@ export function NewRequestForm({
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [recentQuotes, setRecentQuotes] = useState<PreviousProductQuote[]>([]);
   const [quotesPending, setQuotesPending] = useState(false);
+  const [skuRows, setSkuRows] = useState<{ sku: string; qty: string }[]>([{ sku: "", qty: "" }]);
+
+  const addSkuRow = useCallback(() => setSkuRows((r) => [...r, { sku: "", qty: "" }]), []);
+  const removeSkuRow = useCallback((i: number) => setSkuRows((r) => r.length === 1 ? r : r.filter((_, idx) => idx !== i)), []);
+  const updateSkuRow = useCallback((i: number, field: "sku" | "qty", val: string) =>
+    setSkuRows((r) => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row)), []);
+
+  const skuItemsJson = JSON.stringify(
+    skuRows.filter((r) => r.sku.trim() || r.qty.trim()).map((r) => ({ sku: r.sku.trim(), qty: Number(r.qty) || 0 }))
+  );
 
   // Pre-select partners who offer the chosen product whenever it changes.
   useEffect(() => {
@@ -187,33 +197,83 @@ export function NewRequestForm({
             </div>
           </div>
 
+          {/* SKU table */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>
+                SKUs <span className="small muted">(optional — add one row per variant)</span>
+              </label>
+              <button
+                type="button"
+                onClick={addSkuRow}
+                style={{
+                  fontSize: 12, fontWeight: 600, color: "var(--indigo)",
+                  background: "var(--indigo-50)", border: "1px solid var(--indigo-100)",
+                  borderRadius: 6, padding: "3px 10px", cursor: "pointer",
+                }}
+              >
+                + Add SKU
+              </button>
+            </div>
+            <input type="hidden" name="sku_items" value={skuItemsJson} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {skuRows.map((row, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder={`SKU #${i + 1} (e.g. SKU-001)`}
+                    value={row.sku}
+                    onChange={(e) => updateSkuRow(i, "sku", e.target.value)}
+                    style={{ flex: 2, fontSize: 13 }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Qty"
+                    value={row.qty}
+                    onChange={(e) => updateSkuRow(i, "qty", e.target.value)}
+                    style={{ flex: 1, fontSize: 13 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSkuRow(i)}
+                    disabled={skuRows.length === 1}
+                    style={{
+                      flex: "none", width: 26, height: 26, border: "none",
+                      background: "none", cursor: skuRows.length === 1 ? "not-allowed" : "pointer",
+                      color: skuRows.length === 1 ? "var(--border)" : "#ef4444",
+                      fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                      borderRadius: 4,
+                    }}
+                    title="Remove row"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="field" style={{ marginBottom: 8 }}>
             <label>Request title <span className="small muted">(optional)</span></label>
             <input name="title" placeholder="Auto-filled from product if left blank" />
           </div>
 
-          {/* Dimensions — X / Y / Z (Z required for boxes) */}
-          <div className="grid" style={{ gap: 10, gridTemplateColumns: "1fr 1fr 1fr 0.9fr 2.8fr" }}>
-            <div className="field" style={{ marginBottom: 8 }}>
+          {/* Dimensions + Unit + Request no. — all one line */}
+          <div style={{ display: "flex", flexWrap: "nowrap", gap: 10, alignItems: "flex-start", overflowX: "auto" }}>
+            <div className="field" style={{ marginBottom: 8, minWidth: 80, flex: "1 1 80px" }}>
               <label>Width (X)</label>
               <input name="width" type="number" min="0" step="0.1" placeholder="210" />
             </div>
-            <div className="field" style={{ marginBottom: 8 }}>
+            <div className="field" style={{ marginBottom: 8, minWidth: 80, flex: "1 1 80px" }}>
               <label>Height (Y)</label>
               <input name="height" type="number" min="0" step="0.1" placeholder="297" />
             </div>
             <div
               className="field"
               style={{
-                marginBottom: 8,
-                ...(isBox
-                  ? {
-                      background: "#eff6ff",
-                      border: "1px solid #93c5fd",
-                      borderRadius: 6,
-                      padding: "4px 8px",
-                    }
-                  : {}),
+                marginBottom: 8, minWidth: 80, flex: "1 1 80px",
+                ...(isBox ? { background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 6, padding: "4px 8px" } : {}),
               }}
             >
               <label>
@@ -234,7 +294,7 @@ export function NewRequestForm({
                 </span>
               )}
             </div>
-            <div className="field" style={{ marginBottom: 8 }}>
+            <div className="field" style={{ marginBottom: 8, minWidth: 70, flex: "0 0 80px" }}>
               <label>Unit</label>
               <select name="size_unit" defaultValue="in">
                 <option value="mm">mm</option>
@@ -242,7 +302,7 @@ export function NewRequestForm({
                 <option value="in">in</option>
               </select>
             </div>
-            <div className="field" style={{ marginBottom: 8 }}>
+            <div className="field" style={{ marginBottom: 8, minWidth: 120, flex: "2 1 140px" }}>
               <label>Request no.</label>
               <input name="order_number" placeholder="ORD-1004" />
             </div>

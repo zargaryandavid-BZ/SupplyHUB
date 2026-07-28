@@ -64,6 +64,8 @@ export type ProductRequest = {
   material: string | null;
   finishing: string | null;      // comma-separated list of finishing options
   attachments: string | null;    // JSON array of /uploads/... paths
+  sku_count: number | null;      // number of SKUs / variants in this order
+  sku_items: string | null;      // JSON array of {sku: string, qty: number}
 };
 
 export type Quote = {

@@ -115,6 +115,8 @@ export default async function ManagerRequestDetail({
               size_unit: request.size_unit,
               material: request.material,
               finishing: request.finishing,
+              sku_count: (request as typeof request & { sku_count?: number | null }).sku_count ?? null,
+              sku_items: (request as typeof request & { sku_items?: string | null }).sku_items ?? null,
             }}
             attachments={attachmentUrls}
             updateAction={updateRequest}
@@ -156,7 +158,13 @@ export default async function ManagerRequestDetail({
             return (
               <div className={`offer ${won ? "won" : ""}`} key={o.dispatch_id}>
                 <div className="row-between">
-                  <span className="company">{o.company}</span>
+                  <Link
+                    href={`/manager/partners/${o.partner_id}/edit`}
+                    style={{ fontWeight: 700, fontSize: 15, color: "var(--indigo)", textDecoration: "none" }}
+                    className="company"
+                  >
+                    {o.company}
+                  </Link>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {o.seen_at ? (
                       <span title={`Opened ${new Date(o.seen_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`} style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", display: "inline-flex", alignItems: "center", gap: 3 }}>

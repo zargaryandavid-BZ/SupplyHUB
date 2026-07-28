@@ -296,7 +296,7 @@ export function PartnerProducts({
         <span>Product</span>
         <span>Info / notes</span>
         <span>MOQ</span>
-        <span>Days</span>
+        <span>Turnaround days</span>
         <span>Price</span>
         <span>Currency</span>
         <span>Photos</span>

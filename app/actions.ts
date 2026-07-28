@@ -158,8 +158,9 @@ export async function createRequest(formData: FormData) {
   const material = String(formData.get("material") || "").trim() || null;
   const finishingValues = formData.getAll("finishing").map(String).filter(Boolean);
   const finishing = finishingValues.length ? finishingValues.join(", ") : null;
-
-  // Required: product (category) + quantity. Title is optional — derive it if blank.
+  const skuCount = Number(formData.get("sku_count")) || null;
+  const skuItemsRaw = String(formData.get("sku_items") || "").trim();
+  const skuItems = skuItemsRaw || null;
   if (!category) redirect("/manager/requests/new?error=product");
   if (!quantity) redirect("/manager/requests/new?error=quantity");
   if (!partnerIds.length) redirect("/manager/requests/new?error=partners");
@@ -199,6 +200,8 @@ export async function createRequest(formData: FormData) {
       size_unit: sizeUnit,
       material,
       finishing,
+      sku_count: skuCount,
+      sku_items: skuItems,
       attachments: null,
     })
     .select("id")
@@ -289,6 +292,9 @@ export async function updateRequest(formData: FormData) {
   const material = String(formData.get("material") || "").trim() || null;
   const finishingValues = formData.getAll("finishing").map(String).filter(Boolean);
   const finishing = finishingValues.length ? finishingValues.join(", ") : null;
+  const skuCount = Number(formData.get("sku_count")) || null;
+  const skuItemsRaw2 = String(formData.get("sku_items") || "").trim();
+  const skuItems2 = skuItemsRaw2 || null;
 
   if (!category || !quantity) {
     redirect(`/manager/requests/${id}?error=1`);
@@ -336,6 +342,8 @@ export async function updateRequest(formData: FormData) {
       size_unit: sizeUnit,
       material,
       finishing,
+      sku_count: skuCount,
+      sku_items: skuItems2,
       attachments: attachments.length ? JSON.stringify(attachments) : null,
     })
     .eq("id", id);

@@ -37,6 +37,8 @@ export type RequestDetailFields = {
   size_unit: string | null;
   material: string | null;
   finishing: string | null;
+  sku_count: number | null;
+  sku_items: string | null;
 };
 
 export type RequestAttachment = {
@@ -115,6 +117,38 @@ export function RequestDetailsPanel({
           <dd>{fmt(request.title)}</dd>
           <dt>Quantity</dt>
           <dd>{request.quantity != null ? request.quantity.toLocaleString() : "—"}</dd>
+          {(request.sku_count != null || request.sku_items) && (() => {
+            let items: { sku: string; qty: number }[] = [];
+            try { items = request.sku_items ? JSON.parse(request.sku_items) : []; } catch { items = []; }
+            return items.length > 0 ? (
+              <>
+                <dt>SKUs</dt>
+                <dd>
+                  <table style={{ borderCollapse: "collapse", fontSize: 12, marginTop: 2 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: "left", fontWeight: 600, paddingRight: 16, paddingBottom: 3, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>SKU</th>
+                        <th style={{ textAlign: "right", fontWeight: 600, paddingBottom: 3, color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ paddingRight: 16, paddingTop: 3, fontFamily: "monospace" }}>{row.sku || "—"}</td>
+                          <td style={{ textAlign: "right", paddingTop: 3 }}>{row.qty ? row.qty.toLocaleString() : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </dd>
+              </>
+            ) : request.sku_count != null ? (
+              <>
+                <dt>SKUs qty</dt>
+                <dd>{request.sku_count}</dd>
+              </>
+            ) : null;
+          })()}
           <dt>Needed by</dt>
           <dd>{fmt(request.needed_by)}</dd>
           <dt>Dimensions</dt>
@@ -218,6 +252,10 @@ export function RequestDetailsPanel({
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Quantity *</label>
             <input name="quantity" type="number" min="1" required defaultValue={request.quantity ?? ""} />
+          </div>
+          <div className="field">
+            <label>SKUs qty</label>
+            <input name="sku_count" type="number" min="1" defaultValue={request.sku_count ?? ""} placeholder="1" />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Request title</label>
