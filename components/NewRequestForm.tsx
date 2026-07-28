@@ -197,63 +197,6 @@ export function NewRequestForm({
             </div>
           </div>
 
-          {/* SKU table */}
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-              <label style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>
-                SKUs <span className="small muted">(optional — add one row per variant)</span>
-              </label>
-              <button
-                type="button"
-                onClick={addSkuRow}
-                style={{
-                  fontSize: 12, fontWeight: 600, color: "var(--indigo)",
-                  background: "var(--indigo-50)", border: "1px solid var(--indigo-100)",
-                  borderRadius: 6, padding: "3px 10px", cursor: "pointer",
-                }}
-              >
-                + Add SKU
-              </button>
-            </div>
-            <input type="hidden" name="sku_items" value={skuItemsJson} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {skuRows.map((row, i) => (
-                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input
-                    type="text"
-                    placeholder={`SKU #${i + 1} (e.g. SKU-001)`}
-                    value={row.sku}
-                    onChange={(e) => updateSkuRow(i, "sku", e.target.value)}
-                    style={{ flex: 2, fontSize: 13 }}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Qty"
-                    value={row.qty}
-                    onChange={(e) => updateSkuRow(i, "qty", e.target.value)}
-                    style={{ flex: 1, fontSize: 13 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeSkuRow(i)}
-                    disabled={skuRows.length === 1}
-                    style={{
-                      flex: "none", width: 26, height: 26, border: "none",
-                      background: "none", cursor: skuRows.length === 1 ? "not-allowed" : "pointer",
-                      color: skuRows.length === 1 ? "var(--border)" : "#ef4444",
-                      fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-                      borderRadius: 4,
-                    }}
-                    title="Remove row"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="field" style={{ marginBottom: 8 }}>
             <label>Request title <span className="small muted">(optional)</span></label>
             <input name="title" placeholder="Auto-filled from product if left blank" />
@@ -305,6 +248,72 @@ export function NewRequestForm({
             <div className="field" style={{ marginBottom: 8, minWidth: 120, flex: "2 1 140px" }}>
               <label>Request no.</label>
               <input name="order_number" placeholder="ORD-1004" />
+            </div>
+          </div>
+
+          {/* SKU table */}
+          <div style={{ marginBottom: 8, background: "#f8fafc", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>
+                SKUs
+                <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>optional — one row per variant</span>
+              </span>
+              <button
+                type="button"
+                onClick={addSkuRow}
+                style={{
+                  fontSize: 12, fontWeight: 600, color: "var(--indigo)",
+                  background: "#fff", border: "1px solid var(--indigo-100)",
+                  borderRadius: 6, padding: "4px 12px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> Add SKU
+              </button>
+            </div>
+            <input type="hidden" name="sku_items" value={skuItemsJson} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 28px", gap: 6, marginBottom: 4, padding: "0 2px" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.4px" }}>SKU / Variant name</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.4px", textAlign: "right" }}>Quantity</span>
+              <span />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {skuRows.map((row, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 120px 28px", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder={`e.g. SKU-00${i + 1}, Red / Large…`}
+                    value={row.sku}
+                    onChange={(e) => updateSkuRow(i, "sku", e.target.value)}
+                    style={{ fontSize: 13, padding: "6px 9px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", width: "100%", boxSizing: "border-box" }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={row.qty}
+                    onChange={(e) => updateSkuRow(i, "qty", e.target.value)}
+                    style={{ fontSize: 13, padding: "6px 9px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", textAlign: "right", width: "100%", boxSizing: "border-box",
+                      MozAppearance: "textfield" as React.CSSProperties["MozAppearance"] }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSkuRow(i)}
+                    disabled={skuRows.length === 1}
+                    style={{
+                      width: 26, height: 26, border: "none", padding: 0,
+                      background: skuRows.length === 1 ? "transparent" : "#fee2e2",
+                      cursor: skuRows.length === 1 ? "not-allowed" : "pointer",
+                      color: skuRows.length === 1 ? "var(--border)" : "#dc2626",
+                      fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+                      borderRadius: 5, fontWeight: 700, transition: "background .12s",
+                    }}
+                    title="Remove row"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
