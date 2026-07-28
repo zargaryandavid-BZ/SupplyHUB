@@ -360,7 +360,7 @@ export function PartnerForm({
                 name="internal_notes"
                 placeholder="e.g. Reliable for rush jobs. Prefers email. Discount negotiated for Q3."
                 defaultValue={partner?.internal_notes ?? ""}
-                onChange={markDirty}
+                onChange={() => setIsDirty(true)}
                 rows={5}
                 style={{
                   width: "100%", fontFamily: "inherit", fontSize: 13,
