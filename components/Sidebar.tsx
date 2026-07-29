@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getActor } from "@/lib/session";
 import { partnerRequests } from "@/lib/data";
+import { supabaseAdmin } from "@/lib/supabaseServer";
 
 function IconRequests() {
   return (
@@ -43,6 +44,16 @@ function IconMyRequests() {
   );
 }
 
+function IconFeedback() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  );
+}
+
 const navItemStyle: React.CSSProperties = {
   display: "flex", alignItems: "center", gap: 9,
 };
@@ -55,6 +66,15 @@ export async function Sidebar({ active }: { active: string }) {
   if (actor.role === "partner") {
     const reqs = await partnerRequests(actor.partnerId);
     awaitingCount = reqs.filter((r) => !r.quote_status).length;
+  }
+
+  // Feedback total count (all roles)
+  let feedbackCount = 0;
+  if (actor.role !== "guest") {
+    const { count } = await supabaseAdmin()
+      .from("feedback")
+      .select("id", { count: "exact", head: true });
+    feedbackCount = count ?? 0;
   }
 
   const isManager = actor.role === "manager";
@@ -104,9 +124,32 @@ export async function Sidebar({ active }: { active: string }) {
             </Link>
           </>
         )}
+
+        {/* Feedback — visible to all authenticated users */}
+        <Link
+          href="/feedback"
+          className={active === "feedback" ? "active" : ""}
+          style={{ ...navItemStyle, justifyContent: "space-between" }}
+        >
+          <span style={navItemStyle}>
+            <IconFeedback /> Feedback
+          </span>
+          {feedbackCount > 0 && (
+            <span style={{
+              background: "#e5e7eb", color: "#374151",
+              borderRadius: 999, fontSize: 11, fontWeight: 700,
+              minWidth: 18, height: 18, display: "inline-flex",
+              alignItems: "center", justifyContent: "center",
+              padding: "0 5px", lineHeight: 1, flexShrink: 0,
+            }}>
+              {feedbackCount}
+            </span>
+          )}
+        </Link>
       </nav>
 
 
     </aside>
   );
 }
+
