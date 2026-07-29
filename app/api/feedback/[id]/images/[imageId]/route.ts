@@ -22,7 +22,8 @@ export async function DELETE(
 
   if (!img) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const feedbackUserId = (img.feedback as { user_id: number } | null)?.user_id;
+  const fb = img.feedback as unknown as { user_id: number } | { user_id: number }[] | null;
+  const feedbackUserId = (Array.isArray(fb) ? fb[0] : fb)?.user_id;
   const own = feedbackUserId === actorUserId(actor);
   if (!own && !isAdmin(actor)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
