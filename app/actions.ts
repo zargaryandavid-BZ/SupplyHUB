@@ -527,12 +527,29 @@ export async function submitQuote(formData: FormData) {
     await sb.from("product_requests").update({ status: "quoting" }).eq("id", requestId);
   }
 
-  notify({
-    to: "Distribution Manager",
-    channels: ["email"],
-    subject: `Quote received for request #${requestId}`,
-    body: `A partner submitted ${currency} ${price ?? "?"} (${leadTime ?? "?"} days).`,
-  });
+  // Notify manager based on their preferences
+  {
+    const settings = await getSettings();
+    if (settings.notify_on_quote !== false) {
+      const channels = (settings.notify_channels ?? "email")
+        .split(",")
+        .map((c: string) => c.trim())
+        .filter(Boolean) as Array<"email" | "sms">;
+      const partnerName = await sb
+        .from("dispatches")
+        .select("partners(company)")
+        .eq("id", dispatchId)
+        .maybeSingle()
+        .then((r) => (r.data?.partners as { company?: string } | null)?.company ?? "A partner");
+      await notify({
+        to: settings.contact_name || "Distribution Manager",
+        phone: settings.contact_phone,
+        channels,
+        subject: `Quote received for request #${requestId}`,
+        body: `${partnerName} submitted a quote: ${currency} ${price?.toLocaleString() ?? "?"} (${leadTime ?? "?"} days lead time).`,
+      });
+    }
+  }
 
   revalidatePath(`/partner/requests/${requestId}`);
   redirect(`/partner/requests/${requestId}?saved=1`);
@@ -693,12 +710,30 @@ export async function postMessage(formData: FormData) {
     }
   }
 
-  notify({
-    to: authorRole === "partner" ? "Distribution Manager" : "Partner",
-    channels: ["email", "sms"],
-    subject: `New message on request #${requestId}`,
-    body: text.slice(0, 120),
-  });
+  if (authorRole === "partner") {
+    const settings = await getSettings();
+    if (settings.notify_on_message !== false) {
+      const channels = (settings.notify_channels ?? "email")
+        .split(",")
+        .map((c: string) => c.trim())
+        .filter(Boolean) as Array<"email" | "sms">;
+      await notify({
+        to: settings.contact_name || "Distribution Manager",
+        phone: settings.contact_phone,
+        channels,
+        subject: `New question on request #${requestId}`,
+        body: text.slice(0, 160),
+      });
+    }
+  } else {
+    // Manager posted — optionally ping the partner (not gated by manager prefs)
+    notify({
+      to: "Partner",
+      channels: ["email"],
+      subject: `New reply on request #${requestId}`,
+      body: text.slice(0, 120),
+    });
+  }
 
   revalidatePath(backTo);
   redirect(backTo);
@@ -937,6 +972,9 @@ export async function saveSettings(formData: FormData) {
     sms_won_template: str("sms_won_template"),
     sms_update_template: str("sms_update_template"),
     sms_invite_template: str("sms_invite_template"),
+    notify_on_quote: formData.get("notify_on_quote") === "1",
+    notify_on_message: formData.get("notify_on_message") === "1",
+    notify_channels: formData.getAll("notify_channels").map(String).filter(Boolean).join(",") || "email",
   };
 
   const logoFile = formData.get("company_logo") as File | null;

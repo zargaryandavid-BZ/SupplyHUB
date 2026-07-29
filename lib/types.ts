@@ -146,6 +146,12 @@ export type CompanySettings = {
   sms_update_template: string | null;
   /** SMS portal invite sent to partner. Placeholders: {{company_name}}, {{partner_name}}, {{link}} */
   sms_invite_template: string | null;
+  /** Notify manager when a partner submits a quote */
+  notify_on_quote: boolean | null;
+  /** Notify manager when a partner sends a question/comment */
+  notify_on_message: boolean | null;
+  /** Notification channels: comma list of "email", "sms" */
+  notify_channels: string | null;
   updated_at: string | null;
 };
 

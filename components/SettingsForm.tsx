@@ -309,6 +309,78 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
 
       </div>
 
+      {/* ── Manager notifications ── */}
+      <div className="card" style={{ ...card, marginTop: 2, marginBottom: 14 }}>
+        <p className="card-section-title" style={{ marginBottom: 4 }}>Manager notifications</p>
+        <p className="small muted" style={{ margin: "0 0 14px" }}>
+          Get notified when partners take action. Sent to the Distribution Manager contact details above.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {/* Events */}
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 10 }}>Notify me when</p>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, cursor: "pointer" }}>
+              <input
+                type="hidden"
+                name="notify_on_quote"
+                value="0"
+              />
+              <input
+                type="checkbox"
+                name="notify_on_quote"
+                value="1"
+                defaultChecked={s.notify_on_quote !== false}
+                style={{ width: 16, height: 16, accentColor: "var(--indigo)", cursor: "pointer" }}
+              />
+              <span style={{ fontSize: 14 }}>
+                <strong>Partner submits a quote</strong>
+                <span className="small muted" style={{ display: "block" }}>Triggered each time a partner responds to a request</span>
+              </span>
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <input
+                type="hidden"
+                name="notify_on_message"
+                value="0"
+              />
+              <input
+                type="checkbox"
+                name="notify_on_message"
+                value="1"
+                defaultChecked={s.notify_on_message !== false}
+                style={{ width: 16, height: 16, accentColor: "var(--indigo)", cursor: "pointer" }}
+              />
+              <span style={{ fontSize: 14 }}>
+                <strong>Partner sends a question or comment</strong>
+                <span className="small muted" style={{ display: "block" }}>Triggered when a partner posts in the thread</span>
+              </span>
+            </label>
+          </div>
+          {/* Channels */}
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 10 }}>Send via</p>
+            {[
+              { value: "email", label: "Email", sub: "To the manager email address above" },
+              { value: "sms",   label: "SMS",   sub: "To the manager phone number above" },
+            ].map(({ value, label, sub }) => (
+              <label key={value} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  name="notify_channels"
+                  value={value}
+                  defaultChecked={(s.notify_channels ?? "email").split(",").includes(value)}
+                  style={{ width: 16, height: 16, accentColor: "var(--indigo)", cursor: "pointer" }}
+                />
+                <span style={{ fontSize: 14 }}>
+                  <strong>{label}</strong>
+                  <span className="small muted" style={{ display: "block" }}>{sub}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* ── Notifications ── */}
       <div className="card" style={{ ...card, marginTop: 2, marginBottom: 72 }}>
         <p className="card-section-title" style={{ marginBottom: 4 }}>SMS / notification templates</p>
