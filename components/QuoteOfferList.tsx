@@ -118,7 +118,7 @@ export function QuoteOfferList({
 
                 {/* Send-to-client proposal button */}
                 <div style={{ marginTop: 10 }}>
-                  <ProposalPanel offer={offerData} fullWidth />
+                  <ProposalPanel offer={offerData} />
                 </div>
 
                 {!isAwarded && (
@@ -141,7 +141,7 @@ export function QuoteOfferList({
                 {/* Still allow sending proposal even without quote */}
                 <p className="small muted" style={{ marginTop: 12 }}>Awaiting quote…</p>
                 <div style={{ marginTop: 8 }}>
-                  <ProposalPanel offer={offerData} fullWidth />
+                  <ProposalPanel offer={offerData} />
                 </div>
               </>
             )}
