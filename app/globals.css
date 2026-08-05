@@ -157,7 +157,7 @@ table.data tr:last-child td { border-bottom: none; }
 table.data tbody tr:hover { background: #fafafa; }
 
 /* ---------- Compare grid ---------- */
-.compare { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); }
+.compare { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 .offer { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
 .offer.won { border: 2px solid var(--green); }
 .offer .company { font-weight: 700; font-size: 16px; }
