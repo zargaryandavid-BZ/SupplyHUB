@@ -11,7 +11,7 @@ import { Badge } from "@/components/Badge";
 import { RequestDetailsPanel } from "@/components/RequestDetailsPanel";
 import { NotifyPartnersModal } from "@/components/NotifyPartnersModal";
 import { QuoteOfferList } from "@/components/QuoteOfferList";
-import { signedAttachmentUrl } from "@/lib/storage";
+import { signedAttachmentUrl, publicLogoUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +52,7 @@ export default async function ManagerRequestDetail({
 
   // Build default SMS update message (filled with request data as preview)
   const companyName = settings.company_name?.trim() || "our print house";
+  const logoUrl = publicLogoUrl(settings.logo_path);
   const updateTemplate = settings.sms_update_template?.trim() || DEFAULT_SMS_UPDATE;
   const defaultSmsMessage = fillTemplate(updateTemplate, {
     company_name: companyName,
@@ -174,6 +175,8 @@ export default async function ManagerRequestDetail({
           bestLead={bestLead}
           isAwarded={isAwarded}
           awardAction={awardQuote}
+          companyName={companyName}
+          logoUrl={logoUrl}
         />
 
         <div className="card" style={{ marginTop: 20 }}>

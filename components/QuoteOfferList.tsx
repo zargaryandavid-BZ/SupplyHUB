@@ -27,6 +27,8 @@ interface QuoteOfferListProps {
   bestPrice: number | null;
   bestLead: number | null;
   isAwarded: boolean;
+  companyName?: string;
+  logoUrl?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   awardAction: (formData: FormData) => Promise<any>;
 }
@@ -38,6 +40,8 @@ export function QuoteOfferList({
   bestPrice,
   bestLead,
   isAwarded,
+  companyName,
+  logoUrl,
   awardAction,
 }: QuoteOfferListProps) {
   return (
@@ -54,6 +58,8 @@ export function QuoteOfferList({
           partnerName: o.company,
           basePrice: o.price,
           currency: o.currency ?? "USD",
+          companyName,
+          logoUrl,
         };
 
         return (
