@@ -7,6 +7,7 @@ import {
   DEFAULT_SMS_WON,
   DEFAULT_SMS_UPDATE,
   DEFAULT_SMS_INVITE,
+  DEFAULT_SMS_CLIENT_RESPONSE,
 } from "@/lib/notifyTemplates";
 
 type Props = {
@@ -385,10 +386,11 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
       <div className="card" style={{ ...card, marginTop: 2, marginBottom: 72 }}>
         <p className="card-section-title" style={{ marginBottom: 4 }}>SMS / notification templates</p>
         <p className="small muted" style={{ margin: "0 0 14px" }}>
-          Sent to partners for invites, new requests, and project updates. Use placeholders like{" "}
+          Sent to partners for invites, new requests, and project updates — and to the manager when a client responds to a proposal. Use placeholders like{" "}
           <code>{"{{company_name}}"}</code>, <code>{"{{partner_name}}"}</code>, <code>{"{{title}}"}</code>,{" "}
           <code>{"{{link}}"}</code>, <code>{"{{quantity}}"}</code>, <code>{"{{price}}"}</code>,{" "}
-          <code>{"{{currency}}"}</code>, <code>{"{{lead_time_days}}"}</code>, <code>{"{{needed_by}}"}</code>.{" "}
+          <code>{"{{currency}}"}</code>, <code>{"{{lead_time_days}}"}</code>, <code>{"{{needed_by}}"}</code>,{" "}
+          <code>{"{{client_name}}"}</code>, <code>{"{{action}}"}</code>, <code>{"{{option_label}}"}</code>.{" "}
           Leave blank to use the default text.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14 }}>
@@ -432,6 +434,24 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
               defaultValue={s.sms_update_template ?? ""}
               style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.45 }}
             />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Client proposal response (SMS to manager)</label>
+            <textarea
+              name="sms_client_response_template"
+              rows={5}
+              placeholder={DEFAULT_SMS_CLIENT_RESPONSE}
+              defaultValue={s.sms_client_response_template ?? ""}
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, lineHeight: 1.45 }}
+            />
+            <span className="small muted">
+              Sent to manager phone when a client Approves or Declines. Placeholders:{" "}
+              <code>{"{{manager_name}}"}</code> <code>{"{{client_name}}"}</code> <code>{"{{action}}"}</code>{" "}
+              <code>{"{{title}}"}</code> <code>{"{{option_label}}"}</code> <code>{"{{price_line}}"}</code>{" "}
+              <code>{"{{link}}"}</code>
+            </span>
           </div>
         </div>
       </div>

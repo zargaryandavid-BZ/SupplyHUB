@@ -146,6 +146,8 @@ export type CompanySettings = {
   sms_update_template: string | null;
   /** SMS portal invite sent to partner. Placeholders: {{company_name}}, {{partner_name}}, {{link}} */
   sms_invite_template: string | null;
+  /** SMS to manager when a client approves/declines a proposal. Placeholders: {{company_name}}, {{manager_name}}, {{client_name}}, {{title}}, {{action}}, {{option_label}}, {{price}}, {{currency}}, {{price_line}}, {{link}} */
+  sms_client_response_template: string | null;
   /** Notify manager when a partner submits a quote */
   notify_on_quote: boolean | null;
   /** Notify manager when a partner sends a question/comment */

@@ -4,6 +4,18 @@ import { getActor } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
+// GET /api/proposals/[id]
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const actor = await getActor();
+  if (actor.role !== "manager") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const sb = supabaseAdmin();
+  const { data: proposal } = await sb.from("client_proposals").select("*").eq("id", params.id).single();
+  if (!proposal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const { data: options } = await sb.from("proposal_options").select("*").eq("proposal_id", params.id).order("position");
+  return NextResponse.json({ proposal: { ...proposal, options: options ?? [] } });
+}
+
 // PATCH /api/proposals/[id]
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const actor = await getActor();

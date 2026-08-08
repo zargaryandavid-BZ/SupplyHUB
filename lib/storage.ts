@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabaseServer";
 const LOGOS_BUCKET = "partner-logos";
 const ATTACHMENTS_BUCKET = "request-attachments";
 const PRODUCT_IMAGES_BUCKET = "partner-products";
+const PROPOSAL_IMAGES_BUCKET = "proposal-images";
 
 // ── Validation constants (logos only) ──────────────────────────────────────
 export const LOGO_ALLOWED_TYPES = [
@@ -219,6 +220,27 @@ export async function removeAttachment(key: string): Promise<void> {
   await supabaseAdmin().storage.from(ATTACHMENTS_BUCKET).remove([key]);
 }
 
+// ── Proposal image helpers ──────────────────────────────────────────────────
+
+/**
+ * Uploads a file buffer to the proposal-images public bucket.
+ * Returns the permanent public URL.
+ */
+export async function uploadProposalImage(
+  buffer: Buffer,
+  mimeType: string,
+  ext: string
+): Promise<string> {
+  const key = `proposals/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const sb = supabaseAdmin();
+  const { error } = await sb.storage.from(PROPOSAL_IMAGES_BUCKET).upload(key, buffer, {
+    contentType: mimeType,
+    upsert: false,
+  });
+  if (error) throw new Error(`uploadProposalImage failed: ${error.message}`);
+  return sb.storage.from(PROPOSAL_IMAGES_BUCKET).getPublicUrl(key).data.publicUrl;
+}
+
 /**
  * Idempotently ensures both storage buckets exist.
  * Called by the setup script and can be called at app boot.
@@ -245,6 +267,12 @@ export async function ensureBuckets(): Promise<void> {
     const { error } = await sb.createBucket(PRODUCT_IMAGES_BUCKET, { public: true });
     if (error && !error.message.includes("already exists")) {
       throw new Error(`Failed to create bucket ${PRODUCT_IMAGES_BUCKET}: ${error.message}`);
+    }
+  }
+  if (!names.has(PROPOSAL_IMAGES_BUCKET)) {
+    const { error } = await sb.createBucket(PROPOSAL_IMAGES_BUCKET, { public: true });
+    if (error && !error.message.includes("already exists")) {
+      throw new Error(`Failed to create bucket ${PROPOSAL_IMAGES_BUCKET}: ${error.message}`);
     }
   }
 }

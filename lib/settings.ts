@@ -31,6 +31,7 @@ export async function getSettings(): Promise<CompanySettings> {
     sms_won_template: null,
     sms_update_template: null,
     sms_invite_template: null,
+    sms_client_response_template: null,
     notify_on_quote: true,
     notify_on_message: true,
     notify_channels: "email",

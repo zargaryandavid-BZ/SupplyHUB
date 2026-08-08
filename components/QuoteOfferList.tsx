@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Badge } from "@/components/Badge";
-import { ProposalPanel, type OfferData } from "@/components/ProposalPanel";
+import { ProposalPanel, type OfferData, type RequestDetails } from "@/components/ProposalPanel";
 
 export interface OfferRow {
   dispatch_id: number;
@@ -28,20 +28,18 @@ interface QuoteOfferListProps {
   bestLead: number | null;
   isAwarded: boolean;
   companyName?: string;
+  companyAddress?: string | null;
+  companyPhone?: string | null;
+  companyEmail?: string | null;
   logoUrl?: string | null;
+  requestDetails?: RequestDetails;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   awardAction: (formData: FormData) => Promise<any>;
 }
 
 export function QuoteOfferList({
-  offers,
-  requestId,
-  requestTitle,
-  bestPrice,
-  bestLead,
-  isAwarded,
-  companyName,
-  logoUrl,
+  offers, requestId, requestTitle, bestPrice, bestLead, isAwarded,
+  companyName, companyAddress, companyPhone, companyEmail, logoUrl, requestDetails,
   awardAction,
 }: QuoteOfferListProps) {
   return (
@@ -58,8 +56,15 @@ export function QuoteOfferList({
           partnerName: o.company,
           basePrice: o.price,
           currency: o.currency ?? "USD",
+          leadTimeDays: o.lead_time_days,
+          validUntil: o.valid_until,
+          conditions: o.conditions,
           companyName,
+          companyAddress,
+          companyPhone,
+          companyEmail,
           logoUrl,
+          requestDetails,
         };
 
         return (
@@ -105,7 +110,27 @@ export function QuoteOfferList({
             {hasQuote ? (
               <>
                 <div className="price">
-                  {o.currency} {o.price?.toLocaleString()}
+                  {(() => {
+                    const qty = requestDetails?.quantity;
+                    const unit = o.price;
+                    const ttl = unit != null && qty != null && qty > 0 ? unit * qty : null;
+                    const sym = ({ USD: "$", EUR: "€", GBP: "£", CAD: "C$", AMD: "֏" } as Record<string, string>)[o.currency ?? "USD"]
+                      ?? `${o.currency} `;
+                    const fmtUnit = (n: number) =>
+                      n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const fmtTtl = (n: number) =>
+                      n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+                    if (unit == null) return "—";
+                    if (ttl != null) {
+                      return (
+                        <>
+                          TTL {sym}{fmtTtl(ttl)}{" "}
+                          {sym}{fmtUnit(unit)}/un
+                        </>
+                      );
+                    }
+                    return <>{sym}{fmtUnit(unit)}/un</>;
+                  })()}
                   {o.price === bestPrice && <span className="best small"> ★ lowest</span>}
                 </div>
                 <div className="row">

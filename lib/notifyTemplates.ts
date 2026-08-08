@@ -23,6 +23,12 @@ export const DEFAULT_SMS_INVITE = [
   "{{link}}",
 ].join("\n");
 
+export const DEFAULT_SMS_CLIENT_RESPONSE = [
+  "Hi {{manager_name}}, {{client_name}} {{action}} the proposal \"{{title}}\".",
+  "{{option_label}}{{price_line}}",
+  "Open: {{link}}",
+].join("\n");
+
 export function appBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");

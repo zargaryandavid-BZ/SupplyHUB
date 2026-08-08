@@ -11,6 +11,7 @@ import { Badge } from "@/components/Badge";
 import { RequestDetailsPanel } from "@/components/RequestDetailsPanel";
 import { NotifyPartnersModal } from "@/components/NotifyPartnersModal";
 import { QuoteOfferList } from "@/components/QuoteOfferList";
+import { ClientProposalsTable } from "@/components/ClientProposalsTable";
 import { signedAttachmentUrl, publicLogoUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +54,20 @@ export default async function ManagerRequestDetail({
   // Build default SMS update message (filled with request data as preview)
   const companyName = settings.company_name?.trim() || "our print house";
   const logoUrl = publicLogoUrl(settings.logo_path);
-  const updateTemplate = settings.sms_update_template?.trim() || DEFAULT_SMS_UPDATE;
+
+  const requestDetails = {
+    category: request.category,
+    quantity: request.quantity,
+    material: request.material ?? null,
+    finishing: request.finishing ?? null,
+    specs: request.specs ?? null,
+    width: request.width ?? null,
+    height: request.height ?? null,
+    depth: request.depth ?? null,
+    size_unit: request.size_unit ?? null,
+    needed_by: request.needed_by ?? null,
+    attachmentUrls: attachmentUrls.map((a) => ({ url: a.url, name: a.name })),
+  };  const updateTemplate = settings.sms_update_template?.trim() || DEFAULT_SMS_UPDATE;
   const defaultSmsMessage = fillTemplate(updateTemplate, {
     company_name: companyName,
     partner_name: "{{partner_name}}",
@@ -176,7 +190,34 @@ export default async function ManagerRequestDetail({
           isAwarded={isAwarded}
           awardAction={awardQuote}
           companyName={companyName}
+          companyAddress={settings.hq_address ?? null}
+          companyPhone={settings.contact_phone ?? null}
+          companyEmail={settings.contact_email ?? null}
           logoUrl={logoUrl}
+          requestDetails={requestDetails}
+        />
+
+        <ClientProposalsTable
+          requestId={request.id}
+          requestTitle={request.title}
+          baseOfferData={{
+            requestId: request.id,
+            requestTitle: request.title,
+            quoteId: undefined,
+            dispatchId: 0,
+            partnerName: "",
+            basePrice: null,
+            currency: "USD",
+            leadTimeDays: null,
+            validUntil: null,
+            conditions: null,
+            requestDetails,
+            companyName,
+            companyAddress: settings.hq_address ?? null,
+            companyPhone: settings.contact_phone ?? null,
+            companyEmail: settings.contact_email ?? null,
+            logoUrl,
+          }}
         />
 
         <div className="card" style={{ marginTop: 20 }}>

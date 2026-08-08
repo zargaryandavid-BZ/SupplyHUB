@@ -972,6 +972,7 @@ export async function saveSettings(formData: FormData) {
     sms_won_template: str("sms_won_template"),
     sms_update_template: str("sms_update_template"),
     sms_invite_template: str("sms_invite_template"),
+    sms_client_response_template: str("sms_client_response_template"),
     notify_on_quote: formData.get("notify_on_quote") === "1",
     notify_on_message: formData.get("notify_on_message") === "1",
     notify_channels: formData.getAll("notify_channels").map(String).filter(Boolean).join(",") || "email",
