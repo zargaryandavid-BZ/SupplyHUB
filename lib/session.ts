@@ -7,7 +7,7 @@ import type { Partner } from "./types";
 
 export const SESSION_COOKIE = "shub_session";
 const LEGACY_COOKIE = "shub_actor";
-const INACTIVITY_MS = 3 * 60 * 60 * 1000; // 3 hours
+const INACTIVITY_MS = 8 * 60 * 60 * 1000; // 8 hours idle timeout (full workday)
 const UPDATE_THRESHOLD_MS = 5 * 60 * 1000; // only write DB if >5 min stale
 
 export type Actor =
@@ -85,7 +85,7 @@ export async function createSession(actorType: "manager" | "partner", actorId?: 
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    maxAge: 60 * 60 * 3, // 3h max-age, inactivity check is also 3h
+    maxAge: 60 * 60 * 24, // 24h cookie — server-side idle check (8h) is the real enforcer
   });
   return id;
 }
