@@ -26,6 +26,17 @@ function IconPartners() {
   );
 }
 
+function IconContacts() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <line x1="23" y1="11" x2="17" y2="11"/>
+      <line x1="20" y1="8" x2="20" y2="14"/>
+    </svg>
+  );
+}
+
 function IconSettings() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -99,6 +110,9 @@ export async function Sidebar({ active }: { active: string }) {
             </Link>
             <Link href="/manager/partners" className={active === "partners" ? "active" : ""} style={navItemStyle}>
               <IconPartners /> Partner directory
+            </Link>
+            <Link href="/manager/contacts" className={active === "contacts" ? "active" : ""} style={navItemStyle}>
+              <IconContacts /> Contacts
             </Link>
             <Link href="/manager/settings" className={active === "settings" ? "active" : ""} style={navItemStyle}>
               <IconSettings /> Settings

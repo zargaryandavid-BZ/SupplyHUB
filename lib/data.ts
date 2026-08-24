@@ -355,6 +355,16 @@ export async function partnerContactsByPartnerId(partnerId: number) {
   return (data ?? []) as import("./types").PartnerContact[];
 }
 
+export async function allPartnerContacts() {
+  const { data } = await supabaseAdmin()
+    .from("partner_contacts")
+    .select("*, partners(id, company)")
+    .order("is_primary", { ascending: false })
+    .order("created_at");
+  type Row = import("./types").PartnerContact & { partners: { id: number; company: string } | null };
+  return (data ?? []) as Row[];
+}
+
 export async function employeeById(id: string) {
   const { data } = await supabaseAdmin()
     .from("employees")
