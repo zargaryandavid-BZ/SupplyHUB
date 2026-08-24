@@ -10,7 +10,13 @@ export async function TopBar() {
   if (actor.role === "manager") {
     const settings = await getSettings();
     const name = settings.manager_name?.trim() || settings.contact_name?.trim() || "";
-    label = name ? `${name} · Distribution Manager` : "Distribution Manager";
+    const company = settings.company_name?.trim();
+    label = [company, name || "Distribution Manager"].filter(Boolean).join(" · ");
+  } else if (actor.role === "employee") {
+    const settings = await getSettings();
+    const company = settings.company_name?.trim();
+    const position = actor.employee.position?.trim() || "Employee";
+    label = [company, `${actor.employee.name} · ${position}`].filter(Boolean).join(" · ");
   } else {
     label =
       (actor.partner.contact ?? actor.partner.company ?? "Partner").split(" ")[0] +

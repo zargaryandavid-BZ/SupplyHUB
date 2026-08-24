@@ -52,7 +52,7 @@ type Actions = {
   deleteReq: (fd: FormData) => Promise<any>;
 };
 
-export function ManagerRequestsView({ requests, actions }: { requests: RequestRow[]; actions: Actions }) {
+export function ManagerRequestsView({ requests, actions, isManager = true }: { requests: RequestRow[]; actions: Actions; isManager?: boolean }) {
   const [view, setView] = useState<ViewMode>("table");
   const [query, setQuery] = useState("");
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
@@ -393,6 +393,7 @@ export function ManagerRequestsView({ requests, actions }: { requests: RequestRo
               <th>Partners</th>
               <th>Quotes</th>
               <th>Best price</th>
+              {isManager && <th>Owner</th>}
               <th>Actions</th>
             </tr>
           </thead>
@@ -447,6 +448,21 @@ export function ManagerRequestsView({ requests, actions }: { requests: RequestRo
                   <td className="small">
                     {r.best_price != null ? `$${r.best_price.toLocaleString()}` : "—"}
                   </td>
+                  {isManager && (
+                    <td className="small">
+                      {r.owner_name ? (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          background: "#f0f4ff", color: "#4f46e5",
+                          borderRadius: 12, padding: "2px 8px", fontSize: 12, fontWeight: 500,
+                        }}>
+                          {r.owner_name}
+                        </span>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                  )}
                   <td>
                     <RequestActionsMenu
                       requestId={r.id}

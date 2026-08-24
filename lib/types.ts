@@ -36,6 +36,28 @@ export type Partner = {
   internal_notes: string | null;  // manager-only notes, never shown to partners
 };
 
+export type PartnerContact = {
+  id: number;
+  partner_id: number;
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  is_primary: boolean;
+  created_at: string;
+};
+
+export type Employee = {
+  id: string;           // uuid
+  name: string;
+  email: string;
+  phone: string | null;
+  position: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
 export type Client = {
   id: number;
   name: string;

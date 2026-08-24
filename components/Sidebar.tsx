@@ -78,11 +78,12 @@ export async function Sidebar({ active }: { active: string }) {
   }
 
   const isManager = actor.role === "manager";
+  const isEmployee = actor.role === "employee";
 
   return (
     <aside className="sidebar">
       <Link
-        href={isManager ? "/manager" : "/partner"}
+        href={(isManager || isEmployee) ? "/manager" : "/partner"}
         className="logo"
         style={{ textDecoration: "none", display: "block" }}
       >
@@ -101,6 +102,15 @@ export async function Sidebar({ active }: { active: string }) {
             </Link>
             <Link href="/manager/settings" className={active === "settings" ? "active" : ""} style={navItemStyle}>
               <IconSettings /> Settings
+            </Link>
+          </>
+        ) : isEmployee ? (
+          <>
+            <Link href="/manager" className={active === "board" ? "active" : ""} style={navItemStyle}>
+              <IconRequests /> My Requests
+            </Link>
+            <Link href="/manager/requests/new" className={active === "new" ? "active" : ""} style={navItemStyle}>
+              <IconMyRequests /> New request
             </Link>
           </>
         ) : (

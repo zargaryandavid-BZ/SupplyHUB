@@ -70,8 +70,9 @@ export async function requestOtp(formData: FormData) {
   const hash = hashCode(code);
   await createPendingSession(
     actor.type,
-    actor.type === "partner" ? actor.id : null,
-    hash
+    actor.type === "partner" ? actor.id as number : null,
+    hash,
+    actor.type === "employee" ? actor.id as string : undefined
   );
 
   await sendOtpSms(actor.phone, code, companyName);
@@ -113,6 +114,7 @@ export async function verifyOtp(formData: FormData) {
     .eq("id", sessionId);
 
   if (session.actor_type === "manager") redirect("/manager");
+  if (session.actor_type === "employee") redirect("/manager");
   redirect("/partner");
 }
 
@@ -142,6 +144,9 @@ export async function getRecentQuotesForProduct(
 // ---------- Manager: create + dispatch a request ----------
 export async function createRequest(formData: FormData) {
   const sb = supabaseAdmin();
+  const actor = await getActor();
+  if (actor.role !== "manager" && actor.role !== "employee") redirect("/");
+
   const orderNumber = String(formData.get("order_number") || "").trim();
   const title = String(formData.get("title") || "").trim();
   const category = String(formData.get("category") || "").trim();
@@ -203,6 +208,7 @@ export async function createRequest(formData: FormData) {
       sku_count: skuCount,
       sku_items: skuItems,
       attachments: null,
+      owner_id: actor.role === "employee" ? actor.employeeId : null,
     })
     .select("id")
     .single();
@@ -973,8 +979,8 @@ export async function saveSettings(formData: FormData) {
     sms_update_template: str("sms_update_template"),
     sms_invite_template: str("sms_invite_template"),
     sms_client_response_template: str("sms_client_response_template"),
-    notify_on_quote: formData.get("notify_on_quote") === "1",
-    notify_on_message: formData.get("notify_on_message") === "1",
+    notify_on_quote: formData.getAll("notify_on_quote").includes("1"),
+    notify_on_message: formData.getAll("notify_on_message").includes("1"),
     notify_channels: formData.getAll("notify_channels").map(String).filter(Boolean).join(",") || "email",
   };
 
@@ -1192,4 +1198,76 @@ export async function duplicateRequest(formData: FormData) {
 
   revalidatePath("/manager");
   redirect(`/manager/requests/${newReq!.id}`);
+}
+
+// ---------- Employees ----------
+
+export async function saveEmployee(formData: FormData): Promise<{ error?: string }> {
+  const actor = await getActor();
+  if (actor.role !== "manager") return { error: "Unauthorized" };
+
+  const sb = supabaseAdmin();
+  const id = String(formData.get("id") || "").trim() || null;
+  const name = String(formData.get("emp_name") || "").trim();
+  const email = String(formData.get("emp_email") || "").trim().toLowerCase();
+  const phone = String(formData.get("emp_phone") || "").trim() || null;
+  const position = String(formData.get("emp_position") || "").trim() || null;
+
+  if (!name || !email) return { error: "Name and email are required." };
+
+  if (id) {
+    const { error } = await sb.from("employees").update({ name, email, phone, position }).eq("id", id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await sb.from("employees").insert({ name, email, phone, position });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/manager/settings");
+  return {};
+}
+
+export async function deleteEmployee(id: string): Promise<void> {
+  const actor = await getActor();
+  if (actor.role !== "manager") return;
+  await supabaseAdmin().from("employees").update({ is_active: false }).eq("id", id);
+  revalidatePath("/manager/settings");
+}
+
+// ---------- Partner contacts ----------
+
+export async function savePartnerContact(formData: FormData): Promise<{ error?: string }> {
+  const actor = await getActor();
+  if (actor.role !== "manager") return { error: "Unauthorized" };
+
+  const sb = supabaseAdmin();
+  const id = Number(formData.get("contact_id")) || null;
+  const partner_id = Number(formData.get("partner_id"));
+  const name = String(formData.get("con_name") || "").trim();
+  const title = String(formData.get("con_title") || "").trim() || null;
+  const email = String(formData.get("con_email") || "").trim() || null;
+  const phone = String(formData.get("con_phone") || "").trim() || null;
+  const notes = String(formData.get("con_notes") || "").trim() || null;
+  const is_primary = formData.get("con_primary") === "1";
+
+  if (!name) return { error: "Name is required." };
+  if (!partner_id) return { error: "Partner ID missing." };
+
+  if (id) {
+    const { error } = await sb.from("partner_contacts").update({ name, title, email, phone, notes, is_primary }).eq("id", id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await sb.from("partner_contacts").insert({ partner_id, name, title, email, phone, notes, is_primary });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/manager/partners/${partner_id}/edit`);
+  return {};
+}
+
+export async function deletePartnerContact(id: number, partnerId: number): Promise<void> {
+  const actor = await getActor();
+  if (actor.role !== "manager") return;
+  await supabaseAdmin().from("partner_contacts").delete().eq("id", id);
+  revalidatePath(`/manager/partners/${partnerId}/edit`);
 }

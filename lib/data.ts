@@ -236,35 +236,70 @@ export type RequestRow = ProductRequest & {
   awaiting_count: number; // dispatched but no quote yet
   best_price: number | null;
   open_questions: number;
+  owner_name: string | null;
 };
 
-export async function managerRequests(): Promise<RequestRow[]> {
+export async function managerRequests(ownerFilter?: string): Promise<RequestRow[]> {
   const sb = supabaseAdmin();
 
-  const { data: requests } = await sb
-    .from("product_requests")
-    .select("*")
-    .order("id", { ascending: false });
+  let baseQuery = sb.from("product_requests").select("*").order("id", { ascending: false });
+  if (ownerFilter) baseQuery = baseQuery.eq("owner_id", ownerFilter);
+
+  const { data: requests, error: reqErr } = await baseQuery;
+  if (reqErr) console.error("[managerRequests] product_requests error:", reqErr.message);
   if (!requests?.length) return [];
 
+  const requestIds = requests.map((r) => r.id as number);
   const orderIds = [...new Set(requests.map((r) => r.order_id as number))];
-  const { data: orders } = await sb
-    .from("orders")
-    .select("id, client_id, order_number")
-    .in("id", orderIds);
+  const ownerIds = [...new Set(
+    (requests as Array<{ owner_id?: string | null }>)
+      .map((r) => r.owner_id)
+      .filter((v): v is string => Boolean(v))
+  )];
+
+  // Run all secondary queries in parallel
+  const [
+    { data: orders },
+    { data: dispatches },
+    { data: msgs },
+    { data: owners },
+  ] = await Promise.all([
+    sb.from("orders").select("id, client_id, order_number").in("id", orderIds),
+    sb.from("dispatches").select("id, request_id, partner_id").in("request_id", requestIds),
+    sb.from("messages").select("request_id, author_role").in("request_id", requestIds).eq("author_role", "partner"),
+    ownerIds.length
+      ? sb.from("employees").select("id, name").in("id", ownerIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+  ]);
+
   const ordersMap = Object.fromEntries((orders ?? []).map((o) => [o.id, o]));
+  const ownersMap = Object.fromEntries((owners ?? []).map((e) => [(e as { id: string; name: string }).id, (e as { id: string; name: string }).name]));
 
   const clientIds = [...new Set((orders ?? []).map((o) => o.client_id as number))];
-  const { data: clients } = clientIds.length
-    ? await sb.from("clients").select("id, name").in("id", clientIds)
-    : { data: [] };
-  const clientsMap = Object.fromEntries((clients ?? []).map((c) => [c.id, c]));
+  const partnerIds = [...new Set((dispatches ?? []).map((d) => d.partner_id as number))];
+  const dispatchIds = (dispatches ?? []).map((d) => d.id as number);
 
-  const requestIds = requests.map((r) => r.id as number);
-  const { data: dispatches } = await sb
-    .from("dispatches")
-    .select("id, request_id, partner_id")
-    .in("request_id", requestIds);
+  // Run remaining lookups in parallel
+  const [
+    { data: clients },
+    { data: partners },
+    { data: quotes },
+  ] = await Promise.all([
+    clientIds.length
+      ? sb.from("clients").select("id, name").in("id", clientIds)
+      : Promise.resolve({ data: [] }),
+    partnerIds.length
+      ? sb.from("partners").select("id, company").in("id", partnerIds)
+      : Promise.resolve({ data: [] }),
+    dispatchIds.length
+      ? sb.from("quotes").select("dispatch_id, price").in("dispatch_id", dispatchIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const clientsMap = Object.fromEntries((clients ?? []).map((c) => [c.id, c]));
+  const partnersMap = Object.fromEntries(
+    (partners ?? []).map((p) => [p.id as number, p.company as string])
+  );
 
   const dispatchesByRequest = new Map<number, Array<{ id: number; partner_id: number }>>();
   for (const d of dispatches ?? []) {
@@ -273,29 +308,9 @@ export async function managerRequests(): Promise<RequestRow[]> {
     dispatchesByRequest.set(d.request_id, arr);
   }
 
-  const partnerIds = [...new Set((dispatches ?? []).map((d) => d.partner_id as number))];
-  const { data: partners } = partnerIds.length
-    ? await sb.from("partners").select("id, company").in("id", partnerIds)
-    : { data: [] };
-  const partnersMap = Object.fromEntries(
-    (partners ?? []).map((p) => [p.id as number, p.company as string])
-  );
-
-  const dispatchIds = (dispatches ?? []).map((d) => d.id as number);
-  const { data: quotes } = dispatchIds.length
-    ? await sb
-        .from("quotes")
-        .select("dispatch_id, price")
-        .in("dispatch_id", dispatchIds)
-    : { data: [] };
   const quotesByDispatch = new Map<number, { price: number | null }>();
   for (const q of quotes ?? []) quotesByDispatch.set(q.dispatch_id, q);
 
-  const { data: msgs } = await sb
-    .from("messages")
-    .select("request_id, author_role")
-    .in("request_id", requestIds)
-    .eq("author_role", "partner");
   const questionsByRequest = new Map<number, number>();
   for (const m of msgs ?? []) {
     questionsByRequest.set(m.request_id, (questionsByRequest.get(m.request_id) ?? 0) + 1);
@@ -323,8 +338,40 @@ export async function managerRequests(): Promise<RequestRow[]> {
       awaiting_count: disps.length - prQuotes.length,
       best_price: prices.length ? Math.min(...prices) : null,
       open_questions: questionsByRequest.get(pr.id) ?? 0,
+      owner_name: (pr as ProductRequest & { owner_id?: string | null }).owner_id
+        ? (ownersMap[(pr as ProductRequest & { owner_id?: string | null }).owner_id!] ?? null)
+        : null,
     };
   });
+}
+
+export async function partnerContactsByPartnerId(partnerId: number) {
+  const { data } = await supabaseAdmin()
+    .from("partner_contacts")
+    .select("*")
+    .eq("partner_id", partnerId)
+    .order("is_primary", { ascending: false })
+    .order("created_at");
+  return (data ?? []) as import("./types").PartnerContact[];
+}
+
+export async function employeeById(id: string) {
+  const { data } = await supabaseAdmin()
+    .from("employees")
+    .select("*")
+    .eq("id", id)
+    .eq("is_active", true)
+    .maybeSingle();
+  return data ?? null;
+}
+
+export async function allEmployees() {
+  const { data } = await supabaseAdmin()
+    .from("employees")
+    .select("*")
+    .eq("is_active", true)
+    .order("name");
+  return (data ?? []) as import("./types").Employee[];
 }
 
 export async function requestDetail(id: number) {

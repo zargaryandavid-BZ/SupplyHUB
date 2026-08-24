@@ -22,6 +22,7 @@ function isEmail(s: string): boolean {
 
 export type OtpActor =
   | { type: "manager"; phone: string | null; display: string }
+  | { type: "employee"; id: string; phone: string | null; display: string }
   | { type: "partner"; id: number; phone: string | null; display: string };
 
 /** Find who the identifier (phone or email) belongs to. */
@@ -43,6 +44,15 @@ export async function lookupActor(identifier: string): Promise<OtpActor | null> 
         display: settings.company_name || "Manager",
       };
     }
+
+    // Employee by email
+    const { data: emp } = await sb
+      .from("employees")
+      .select("id, name, phone")
+      .eq("email", lc)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (emp) return { type: "employee", id: emp.id as string, phone: emp.phone, display: emp.name as string };
 
     // Partner by portal_email or email
     const { data: p } = await sb
@@ -70,6 +80,20 @@ export async function lookupActor(identifier: string): Promise<OtpActor | null> 
       display: settings.company_name || "Manager",
     };
   }
+
+  // Employee by phone
+  const { data: employees } = await sb
+    .from("employees")
+    .select("id, name, phone")
+    .eq("is_active", true)
+    .not("phone", "is", null);
+
+  const empMatch = (employees ?? []).find((e) => {
+    if (!e.phone) return false;
+    const ep = normalizePhone(e.phone as string);
+    return ep === normalized || ep.endsWith(normalized) || normalized.endsWith(ep);
+  });
+  if (empMatch) return { type: "employee", id: empMatch.id as string, phone: empMatch.phone, display: empMatch.name as string };
 
   // Partner by phone (flexible match — strip country code variants)
   const { data: partners } = await sb

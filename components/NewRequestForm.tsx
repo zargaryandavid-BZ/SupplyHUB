@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { ImageUpload } from "./ImageUpload";
 import type { PreviousProductQuote } from "@/lib/data";
 
@@ -35,6 +35,53 @@ const FINISHING = [
   "Perforation",
   "Rounded Corners",
 ];
+
+const DRAFT_KEY = "supplyhub-new-request-draft";
+
+interface FormDraft {
+  selected: string;
+  checkedIds: number[];
+  skuRows: { sku: string; qty: string }[];
+  title: string;
+  quantity: string;
+  neededBy: string;
+  width: string;
+  height: string;
+  depth: string;
+  sizeUnit: string;
+  orderNumber: string;
+  specs: string;
+  finishing: string[];
+  savedAt: number;
+}
+
+function loadDraft(): FormDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as FormDraft;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: FormDraft) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch { /* storage unavailable */ }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+}
+
+function timeAgo(ts: number): string {
+  const mins = Math.round((Date.now() - ts) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  return `${hrs} hr ago`;
+}
 
 function offering(p: PartnerOption, product: string): PartnerProductOption | undefined {
   return p.products.find((pr) => pr.name.trim().toLowerCase() === product.trim().toLowerCase());
@@ -75,11 +122,78 @@ export function NewRequestForm({
   createRequest: (formData: FormData) => Promise<void>;
   fetchRecentQuotes: (productName: string) => Promise<PreviousProductQuote[]>;
 }) {
+  // Controlled form fields (enables auto-save)
   const [selected, setSelected] = useState("");
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const [skuRows, setSkuRows] = useState<{ sku: string; qty: string }[]>([{ sku: "", qty: "" }]);
+  const [title, setTitle] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [neededBy, setNeededBy] = useState("");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [depth, setDepth] = useState("");
+  const [sizeUnit, setSizeUnit] = useState("in");
+  const [orderNumber, setOrderNumber] = useState("");
+  const [specs, setSpecs] = useState("");
+  const [finishing, setFinishing] = useState<Set<string>>(new Set());
+
+  // Draft state
+  const [draftBanner, setDraftBanner] = useState<{ savedAt: number } | null>(null);
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [recentQuotes, setRecentQuotes] = useState<PreviousProductQuote[]>([]);
   const [quotesPending, setQuotesPending] = useState(false);
-  const [skuRows, setSkuRows] = useState<{ sku: string; qty: string }[]>([{ sku: "", qty: "" }]);
+
+  // ── On mount: check for saved draft ──────────────────────────────
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft && !draftDismissed) setDraftBanner({ savedAt: draft.savedAt });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function restoreDraft() {
+    const draft = loadDraft();
+    if (!draft) return;
+    setSelected(draft.selected ?? "");
+    setCheckedIds(new Set(draft.checkedIds ?? []));
+    setSkuRows(draft.skuRows?.length ? draft.skuRows : [{ sku: "", qty: "" }]);
+    setTitle(draft.title ?? "");
+    setQuantity(draft.quantity ?? "");
+    setNeededBy(draft.neededBy ?? "");
+    setWidth(draft.width ?? "");
+    setHeight(draft.height ?? "");
+    setDepth(draft.depth ?? "");
+    setSizeUnit(draft.sizeUnit ?? "in");
+    setOrderNumber(draft.orderNumber ?? "");
+    setSpecs(draft.specs ?? "");
+    setFinishing(new Set(draft.finishing ?? []));
+    setDraftBanner(null);
+  }
+
+  function dismissDraft() {
+    setDraftBanner(null);
+    setDraftDismissed(true);
+    clearDraft();
+  }
+
+  // ── Auto-save: debounced 1.5s after any field change ─────────────
+  useEffect(() => {
+    if (draftDismissed) return;
+    const hasContent = selected || title || quantity || specs || width || height;
+    if (!hasContent && checkedIds.size === 0 && skuRows.every((r) => !r.sku && !r.qty)) return;
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveDraft({
+        selected, checkedIds: [...checkedIds], skuRows,
+        title, quantity, neededBy, width, height, depth, sizeUnit,
+        orderNumber, specs, finishing: [...finishing], savedAt: Date.now(),
+      });
+    }, 1500);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, checkedIds, skuRows, title, quantity, neededBy, width, height, depth, sizeUnit, orderNumber, specs, finishing]);
 
   const addSkuRow = useCallback(() => setSkuRows((r) => [...r, { sku: "", qty: "" }]), []);
   const removeSkuRow = useCallback((i: number) => setSkuRows((r) => r.length === 1 ? r : r.filter((_, idx) => idx !== i)), []);
@@ -108,18 +222,10 @@ export function NewRequestForm({
     let cancelled = false;
     setQuotesPending(true);
     fetchRecentQuotes(selected)
-      .then((rows) => {
-        if (!cancelled) setRecentQuotes(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setRecentQuotes([]);
-      })
-      .finally(() => {
-        if (!cancelled) setQuotesPending(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((rows) => { if (!cancelled) setRecentQuotes(rows); })
+      .catch(() => { if (!cancelled) setRecentQuotes([]); })
+      .finally(() => { if (!cancelled) setQuotesPending(false); });
+    return () => { cancelled = true; };
   }, [selected, fetchRecentQuotes]);
 
   function toggle(id: number) {
@@ -127,6 +233,14 @@ export function NewRequestForm({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleFinishing(f: string) {
+    setFinishing((prev) => {
+      const next = new Set(prev);
+      next.has(f) ? next.delete(f) : next.add(f);
       return next;
     });
   }
@@ -165,7 +279,42 @@ export function NewRequestForm({
   }, [recentQuotes]);
 
   return (
-    <form id="new-request-form" action={createRequest}>
+    <>
+      {/* ── Draft restore banner ── */}
+      {draftBanner && !draftDismissed && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
+          background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8,
+          padding: "10px 14px", marginBottom: 12, fontSize: 13,
+        }}>
+          <span>
+            <strong>Unsaved draft found</strong> — saved {timeAgo(draftBanner.savedAt)}.
+            Restore your previous work?
+          </span>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              className="btn"
+              style={{ fontSize: 12, padding: "4px 12px", height: 28 }}
+              onClick={restoreDraft}
+            >
+              Restore draft
+            </button>
+            <button
+              type="button"
+              onClick={dismissDraft}
+              style={{
+                fontSize: 12, padding: "4px 10px", height: 28, border: "1px solid var(--border)",
+                borderRadius: 6, background: "#fff", cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
+      <form id="new-request-form" action={(fd) => { clearDraft(); createRequest(fd); }}>
       <div className="grid cols-2" style={{ alignItems: "start", gap: 12 }}>
 
         {/* ── Left column: request details + finishing ── */}
@@ -185,32 +334,34 @@ export function NewRequestForm({
             </div>
             <div className="field" style={{ marginBottom: 8 }}>
               <label>Quantity *</label>
-              <input name="quantity" type="number" min="1" required placeholder="5000" />
+              <input name="quantity" type="number" min="1" required placeholder="5000"
+                value={quantity} onChange={(e) => setQuantity(e.target.value)} />
             </div>
             <div className="field" style={{ marginBottom: 8 }}>
               <label>Needed by</label>
-              <input
-                name="needed_by"
-                type="date"
+              <input name="needed_by" type="date"
                 min={new Date().toISOString().split("T")[0]}
-              />
+                value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
             </div>
           </div>
 
           <div className="field" style={{ marginBottom: 8 }}>
             <label>Request title <span className="small muted">(optional)</span></label>
-            <input name="title" placeholder="Auto-filled from product if left blank" />
+            <input name="title" placeholder="Auto-filled from product if left blank"
+              value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
           {/* Dimensions + Unit + Request no. — all one line */}
           <div style={{ display: "flex", flexWrap: "nowrap", gap: 10, alignItems: "flex-start", overflowX: "auto" }}>
             <div className="field" style={{ marginBottom: 8, minWidth: 80, flex: "1 1 80px" }}>
               <label>Width (X)</label>
-              <input name="width" type="number" min="0" step="0.1" placeholder="210" />
+              <input name="width" type="number" min="0" step="0.1" placeholder="210"
+                value={width} onChange={(e) => setWidth(e.target.value)} />
             </div>
             <div className="field" style={{ marginBottom: 8, minWidth: 80, flex: "1 1 80px" }}>
               <label>Height (Y)</label>
-              <input name="height" type="number" min="0" step="0.1" placeholder="297" />
+              <input name="height" type="number" min="0" step="0.1" placeholder="297"
+                value={height} onChange={(e) => setHeight(e.target.value)} />
             </div>
             <div
               className="field"
@@ -230,6 +381,7 @@ export function NewRequestForm({
                 placeholder={isBox ? "e.g. 150" : "for boxes"}
                 required={isBox}
                 style={isBox ? { borderColor: "#93c5fd" } : {}}
+                value={depth} onChange={(e) => setDepth(e.target.value)}
               />
               {isBox && (
                 <span className="small" style={{ color: "#2563eb", marginTop: 2, display: "block" }}>
@@ -239,7 +391,7 @@ export function NewRequestForm({
             </div>
             <div className="field" style={{ marginBottom: 8, minWidth: 70, flex: "0 0 80px" }}>
               <label>Unit</label>
-              <select name="size_unit" defaultValue="in">
+              <select name="size_unit" value={sizeUnit} onChange={(e) => setSizeUnit(e.target.value)}>
                 <option value="mm">mm</option>
                 <option value="cm">cm</option>
                 <option value="in">in</option>
@@ -247,7 +399,8 @@ export function NewRequestForm({
             </div>
             <div className="field" style={{ marginBottom: 8, minWidth: 120, flex: "2 1 140px" }}>
               <label>Request no.</label>
-              <input name="order_number" placeholder="ORD-1004" />
+              <input name="order_number" placeholder="ORD-1004"
+                value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} />
             </div>
           </div>
 
@@ -323,6 +476,7 @@ export function NewRequestForm({
               name="specs"
               placeholder="Colors, paper weight, binding, special instructions…"
               style={{ minHeight: 40 }}
+              value={specs} onChange={(e) => setSpecs(e.target.value)}
             />
           </div>
         </div>
@@ -335,7 +489,8 @@ export function NewRequestForm({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {FINISHING.map((f) => (
               <label className="check" key={f} style={{ padding: "6px 10px", gap: 6 }}>
-                <input type="checkbox" name="finishing" value={f} />
+                <input type="checkbox" name="finishing" value={f}
+                  checked={finishing.has(f)} onChange={() => toggleFinishing(f)} />
                 <span>{f}</span>
               </label>
             ))}
@@ -433,44 +588,24 @@ export function NewRequestForm({
                         </>
                       )}
                       {history.length > 0 ? (
-                        <ul
-                          style={{
-                            margin: "6px 0 0",
-                            padding: "0 0 0 14px",
-                            listStyle: "disc",
-                          }}
-                        >
+                        <ul style={{ margin: "6px 0 0", padding: "0 0 0 14px", listStyle: "disc" }}>
                           {history.map((q) => {
                             const unit = unitPrice(q);
                             return (
-                              <li
-                                key={`${q.request_id}-${q.revision}-${q.created_at}`}
-                                className="small"
-                                style={{ marginBottom: 2, color: "var(--muted)" }}
-                              >
-                                <span style={{ color: "var(--text)", fontWeight: 600 }}>
-                                  {formatMoney(q.currency, q.price)}
-                                </span>
-                                {q.quantity != null && (
-                                  <> · qty {q.quantity.toLocaleString()}</>
-                                )}
-                                {unit != null && (
-                                  <> · {formatMoney(q.currency, unit)}/u</>
-                                )}
+                              <li key={`${q.request_id}-${q.revision}-${q.created_at}`} className="small" style={{ marginBottom: 2, color: "var(--muted)" }}>
+                                <span style={{ color: "var(--text)", fontWeight: 600 }}>{formatMoney(q.currency, q.price)}</span>
+                                {q.quantity != null && <> · qty {q.quantity.toLocaleString()}</>}
+                                {unit != null && <> · {formatMoney(q.currency, unit)}/u</>}
                                 {q.lead_time_days != null && <> · {q.lead_time_days}d</>}
-                                {" · "}
-                                <span style={{ textTransform: "capitalize" }}>{q.status}</span>
-                                {" · "}
-                                {formatQuoteDate(q.created_at)}
+                                {" · "}<span style={{ textTransform: "capitalize" }}>{q.status}</span>
+                                {" · "}{formatQuoteDate(q.created_at)}
                               </li>
                             );
                           })}
                         </ul>
                       ) : (
                         !quotesPending && (
-                          <div className="small muted" style={{ marginTop: 4 }}>
-                            No previous quotes from this partner
-                          </div>
+                          <div className="small muted" style={{ marginTop: 4 }}>No previous quotes from this partner</div>
                         )
                       )}
                     </span>
@@ -484,14 +619,9 @@ export function NewRequestForm({
           {others.length > 0 && (
             <>
               {selected && matching.length > 0 && (
-                <p className="small muted" style={{ margin: "6px 0" }}>
-                  Other partners
-                </p>
+                <p className="small muted" style={{ margin: "6px 0" }}>Other partners</p>
               )}
-              <div
-                className="checks"
-                style={{ gridTemplateColumns: "1fr", gap: 6 }}
-              >
+              <div className="checks" style={{ gridTemplateColumns: "1fr", gap: 6 }}>
                 {[...others]
                   .sort((a, b) => {
                     const ha = quotesByPartner.get(a.id)?.length ?? 0;
@@ -509,9 +639,7 @@ export function NewRequestForm({
                           padding: "8px 10px",
                           opacity: selected && !hasHistory ? 0.45 : 1,
                           alignItems: "flex-start",
-                          ...(hasHistory
-                            ? { borderColor: "#fcd34d", background: "#fffbeb" }
-                            : null),
+                          ...(hasHistory ? { borderColor: "#fcd34d", background: "#fffbeb" } : null),
                         }}
                       >
                         <input
@@ -528,35 +656,17 @@ export function NewRequestForm({
                             · {p.products.length ? p.products.map((pr) => pr.name).join(", ") : p.categories}
                           </span>
                           {hasHistory && (
-                            <ul
-                              style={{
-                                margin: "6px 0 0",
-                                padding: "0 0 0 14px",
-                                listStyle: "disc",
-                              }}
-                            >
+                            <ul style={{ margin: "6px 0 0", padding: "0 0 0 14px", listStyle: "disc" }}>
                               {history.map((q) => {
                                 const unit = unitPrice(q);
                                 return (
-                                  <li
-                                    key={`${q.request_id}-${q.revision}-${q.created_at}`}
-                                    className="small"
-                                    style={{ marginBottom: 2, color: "var(--muted)" }}
-                                  >
-                                    <span style={{ color: "var(--text)", fontWeight: 600 }}>
-                                      {formatMoney(q.currency, q.price)}
-                                    </span>
-                                    {q.quantity != null && (
-                                      <> · qty {q.quantity.toLocaleString()}</>
-                                    )}
-                                    {unit != null && (
-                                      <> · {formatMoney(q.currency, unit)}/u</>
-                                    )}
+                                  <li key={`${q.request_id}-${q.revision}-${q.created_at}`} className="small" style={{ marginBottom: 2, color: "var(--muted)" }}>
+                                    <span style={{ color: "var(--text)", fontWeight: 600 }}>{formatMoney(q.currency, q.price)}</span>
+                                    {q.quantity != null && <> · qty {q.quantity.toLocaleString()}</>}
+                                    {unit != null && <> · {formatMoney(q.currency, unit)}/u</>}
                                     {q.lead_time_days != null && <> · {q.lead_time_days}d</>}
-                                    {" · "}
-                                    <span style={{ textTransform: "capitalize" }}>{q.status}</span>
-                                    {" · "}
-                                    {formatQuoteDate(q.created_at)}
+                                    {" · "}<span style={{ textTransform: "capitalize" }}>{q.status}</span>
+                                    {" · "}{formatQuoteDate(q.created_at)}
                                   </li>
                                 );
                               })}
@@ -588,5 +698,6 @@ export function NewRequestForm({
         </div>
       </div>
     </form>
+    </>
   );
 }

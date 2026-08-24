@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getActor } from "@/lib/session";
-import { partnerById, partnerStats, allPartners } from "@/lib/data";
-import { updatePartner, deletePartner, togglePartnerActive, generatePortalToken } from "@/app/actions";
+import { partnerById, partnerStats, allPartners, partnerContactsByPartnerId } from "@/lib/data";
+import { updatePartner, deletePartner, togglePartnerActive, generatePortalToken, savePartnerContact, deletePartnerContact } from "@/app/actions";
 import { Sidebar } from "@/components/Sidebar";
 import { PartnerForm } from "@/components/PartnerForm";
+import { PartnerContactsSection } from "@/components/PartnerContactsSection";
 import { publicLogoUrl, publicProductImageUrl } from "@/lib/storage";
 import { getSettings } from "@/lib/settings";
 
@@ -20,11 +21,12 @@ export default async function EditPartner({
   const actor = await getActor();
   if (actor.role !== "manager") redirect("/");
 
-  const [partner, stats, allPartnersData, settings] = await Promise.all([
+  const [partner, stats, allPartnersData, settings, contacts] = await Promise.all([
     partnerById(Number(params.id)),
     partnerStats(Number(params.id)),
     allPartners(),
     getSettings(),
+    partnerContactsByPartnerId(Number(params.id)),
   ]);
   if (!partner) redirect("/manager/partners");
 
@@ -98,6 +100,13 @@ export default async function EditPartner({
           generatePortalToken={generatePortalToken}
           smsInviteTemplate={settings.sms_invite_template ?? undefined}
           companyName={settings.company_name ?? undefined}
+        />
+
+        <PartnerContactsSection
+          partnerId={partner.id}
+          contacts={contacts}
+          saveContact={savePartnerContact}
+          deleteContact={deletePartnerContact}
         />
 
         {/* ── Danger zone ── */}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { CompanySettings } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import type { CompanySettings, Employee } from "@/lib/types";
 import {
   DEFAULT_SMS_NEW_REQUEST,
   DEFAULT_SMS_WON,
@@ -15,6 +16,11 @@ type Props = {
   logoUrl: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   action: (formData: FormData) => Promise<any>;
+  employees?: Employee[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saveEmployee?: (formData: FormData) => Promise<{ error?: string }>;
+  deleteEmployee?: (id: string) => Promise<void>;
+  activeTab?: string;
 };
 
 function LockIcon() {
@@ -27,10 +33,206 @@ function LockIcon() {
   );
 }
 
+function EmployeesSection({
+  employees,
+  saveEmployee,
+  deleteEmployee,
+}: {
+  employees: Employee[];
+  saveEmployee?: (fd: FormData) => Promise<{ error?: string }>;
+  deleteEmployee?: (id: string) => Promise<void>;
+}) {
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const addFormRef = useRef<HTMLFormElement>(null);
+
+  async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!saveEmployee) return;
+    setSaving(true);
+    setFormError(null);
+    const fd = new FormData(e.currentTarget);
+    let result: { error?: string } | undefined;
+    try {
+      result = await saveEmployee(fd);
+    } catch {
+      setSaving(false);
+      setFormError("An unexpected error occurred. Please try again.");
+      return;
+    }
+    setSaving(false);
+    if (result?.error) {
+      setFormError(result.error);
+    } else {
+      addFormRef.current?.reset();
+      setAdding(false);
+      router.refresh();
+    }
+  }
+
+  async function handleEdit(e: React.FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    if (!saveEmployee) return;
+    setEditSaving(true);
+    setEditError(null);
+    const fd = new FormData(e.currentTarget);
+    fd.append("id", id);
+    let result: { error?: string } | undefined;
+    try {
+      result = await saveEmployee(fd);
+    } catch {
+      setEditSaving(false);
+      setEditError("An unexpected error occurred.");
+      return;
+    }
+    setEditSaving(false);
+    if (result?.error) {
+      setEditError(result.error);
+    } else {
+      setEditingId(null);
+      router.refresh();
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!deleteEmployee) return;
+    setDeleting(id);
+    await deleteEmployee(id);
+    setDeleting(null);
+    router.refresh();
+  }
+
+  const inp: React.CSSProperties = {
+    height: 34, padding: "0 10px", border: "1px solid var(--border)",
+    borderRadius: 7, fontSize: 13, fontFamily: "inherit", outline: "none",
+    background: "#fff", width: "100%", boxSizing: "border-box",
+  };
+  const btnGhost: React.CSSProperties = {
+    height: 30, padding: "0 12px", fontSize: 12, whiteSpace: "nowrap",
+    border: "1px solid var(--border)", borderRadius: 6, background: "#fff",
+    cursor: "pointer", fontFamily: "inherit", color: "var(--text)",
+  };
+
+  return (
+    <div className="card" style={{ padding: "16px 18px", marginTop: 2, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <p className="card-section-title" style={{ margin: 0 }}>Account Managers</p>
+        {!adding && (
+          <button type="button" className="btn"
+            style={{ fontSize: 12, padding: "5px 14px", height: 30 }}
+            onClick={() => setAdding(true)}>
+            + Add account manager
+          </button>
+        )}
+      </div>
+
+      {adding && (
+        <form ref={addFormRef} onSubmit={handleAdd}
+          style={{ background: "#f8faff", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 12 }}>
+          {formError && <p style={{ margin: "0 0 8px", fontSize: 12, color: "#dc2626" }}>{formError}</p>}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto auto", gap: 8, alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: 4 }}>Name *</label>
+              <input name="emp_name" required style={inp} placeholder="Jane Smith" />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: 4 }}>Email *</label>
+              <input name="emp_email" type="email" required style={inp} placeholder="jane@company.com" />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: 4 }}>Phone</label>
+              <input name="emp_phone" style={inp} placeholder="+1 555 000 0000" />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", display: "block", marginBottom: 4 }}>Position</label>
+              <input name="emp_position" style={inp} placeholder="Account Manager" defaultValue="Account Manager" />
+            </div>
+            <button type="submit" className="btn" disabled={saving}
+              style={{ height: 34, padding: "0 18px", fontSize: 13, whiteSpace: "nowrap" }}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button type="button" onClick={() => setAdding(false)} style={{ ...btnGhost, height: 34 }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {employees.length === 0 ? (
+        <p className="muted small" style={{ margin: 0 }}>No account managers yet. Add your first team member above.</p>
+      ) : (
+        <table className="data" style={{ marginBottom: 0 }}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Position</th>
+              <th>Added</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {employees.map((emp) =>
+              editingId === emp.id ? (
+                <tr key={emp.id} style={{ background: "#f8faff" }}>
+                  <td colSpan={6} style={{ padding: "10px 8px" }}>
+                    <form onSubmit={(e) => handleEdit(e, emp.id)}>
+                      {editError && <p style={{ margin: "0 0 6px", fontSize: 12, color: "#dc2626" }}>{editError}</p>}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto auto", gap: 8, alignItems: "center" }}>
+                        <input name="emp_name" required defaultValue={emp.name} style={inp} placeholder="Name *" />
+                        <input name="emp_email" type="email" required defaultValue={emp.email} style={inp} placeholder="Email *" />
+                        <input name="emp_phone" defaultValue={emp.phone ?? ""} style={inp} placeholder="Phone" />
+                        <input name="emp_position" defaultValue={emp.position ?? ""} style={inp} placeholder="Position" />
+                        <button type="submit" className="btn" disabled={editSaving}
+                          style={{ height: 34, padding: "0 16px", fontSize: 13, whiteSpace: "nowrap" }}>
+                          {editSaving ? "Saving…" : "Update"}
+                        </button>
+                        <button type="button" onClick={() => { setEditingId(null); setEditError(null); }} style={{ ...btnGhost, height: 34 }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={emp.id}>
+                  <td style={{ fontWeight: 500 }}>{emp.name}</td>
+                  <td className="small">{emp.email}</td>
+                  <td className="small">{emp.phone ?? "—"}</td>
+                  <td className="small">{emp.position ?? "—"}</td>
+                  <td className="small muted">{new Date(emp.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                      <button type="button" onClick={() => { setEditingId(emp.id); setEditError(null); }} style={btnGhost}>
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => handleDelete(emp.id)} disabled={deleting === emp.id}
+                        style={{ ...btnGhost, color: "#dc2626", borderColor: "transparent" }}>
+                        {deleting === emp.id ? "Removing…" : "Remove"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 const card = { padding: "16px 18px", marginBottom: 14 } as const;
 const fld  = { marginBottom: 10 } as const;
 
-export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: Props) {
+export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action, employees = [], saveEmployee, deleteEmployee }: Props) {
   const [isDirty, setIsDirty] = useState(false);
   const [managerName, setManagerName] = useState(s.manager_name ?? "");
   const [managerPhone, setManagerPhone] = useState(s.manager_phone ?? "");
@@ -52,6 +254,7 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
   }
 
   return (
+    <>
     <form action={action} onChange={markDirty} onSubmit={() => setIsDirty(false)}>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, alignItems: "start" }}>
@@ -473,5 +676,7 @@ export function SettingsForm({ settings: s, logoUrl: initialLogoUrl, action }: P
         </div>
       )}
     </form>
+    <EmployeesSection employees={employees} saveEmployee={saveEmployee} deleteEmployee={deleteEmployee} />
+    </>
   );
 }

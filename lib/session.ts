@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { randomUUID } from "crypto";
 import { supabaseAdmin } from "./supabaseServer";
 import { partnerById } from "./data";
-import type { Partner } from "./types";
+import type { Partner, Employee } from "./types";
 
 export const SESSION_COOKIE = "shub_session";
 const LEGACY_COOKIE = "shub_actor";
@@ -12,6 +12,7 @@ const UPDATE_THRESHOLD_MS = 5 * 60 * 1000; // only write DB if >5 min stale
 
 export type Actor =
   | { role: "manager" }
+  | { role: "employee"; employeeId: string; employee: Employee }
   | { role: "partner"; partnerId: number; partner: Partner }
   | { role: "guest" };
 
@@ -21,6 +22,7 @@ export async function getActor(): Promise<Actor> {
   // ── New session system ──────────────────────────────────────────
   const sessionId = jar.get(SESSION_COOKIE)?.value;
   if (sessionId) {
+    const t0 = Date.now();
     const sb = supabaseAdmin();
     const { data: session } = await sb
       .from("auth_sessions")
@@ -28,6 +30,7 @@ export async function getActor(): Promise<Actor> {
       .eq("id", sessionId)
       .eq("verified", true)
       .maybeSingle();
+    console.log(`[getActor] auth_sessions query: ${Date.now() - t0}ms`);
 
     if (session) {
       const lastActive = new Date(session.last_active as string).getTime();
@@ -49,6 +52,16 @@ export async function getActor(): Promise<Actor> {
       }
 
       if (session.actor_type === "manager") return { role: "manager" };
+
+      if (session.actor_type === "employee" && session.actor_uuid) {
+        const { data: emp } = await sb
+          .from("employees")
+          .select("*")
+          .eq("id", session.actor_uuid)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (emp) return { role: "employee", employeeId: emp.id as string, employee: emp as Employee };
+      }
 
       if (session.actor_type === "partner" && session.actor_id) {
         const partner = await partnerById(session.actor_id as number);
@@ -72,12 +85,17 @@ export async function getActor(): Promise<Actor> {
 }
 
 /** Create a new verified session (used after OTP is confirmed or magic-link). */
-export async function createSession(actorType: "manager" | "partner", actorId?: number): Promise<string> {
+export async function createSession(
+  actorType: "manager" | "partner" | "employee",
+  actorId?: number,
+  actorUuid?: string
+): Promise<string> {
   const id = randomUUID();
   await supabaseAdmin().from("auth_sessions").insert({
     id,
     actor_type: actorType,
     actor_id: actorId ?? null,
+    actor_uuid: actorUuid ?? null,
     verified: true,
     last_active: new Date().toISOString(),
   });
@@ -92,9 +110,10 @@ export async function createSession(actorType: "manager" | "partner", actorId?: 
 
 /** Create a pending (unverified) OTP session. Returns session ID. */
 export async function createPendingSession(
-  actorType: "manager" | "partner",
+  actorType: "manager" | "partner" | "employee",
   actorId: number | null,
-  otpHash: string
+  otpHash: string,
+  actorUuid?: string
 ): Promise<string> {
   const id = randomUUID();
   const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
@@ -102,6 +121,7 @@ export async function createPendingSession(
     id,
     actor_type: actorType,
     actor_id: actorId,
+    actor_uuid: actorUuid ?? null,
     otp_hash: otpHash,
     otp_expires: expires,
     verified: false,

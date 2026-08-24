@@ -13,7 +13,7 @@ export default async function NewRequest({
   searchParams: { error?: string };
 }) {
   const actor = await getActor();
-  if (actor.role !== "manager") redirect("/");
+  if (actor.role !== "manager" && actor.role !== "employee") redirect("/");
   const partners = await activePartners();
 
   const partnerOptions = partners.map((p) => ({
